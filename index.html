@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NoRekt — mini app</title>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<style>
+  :root{
+    --bg:#0E1621; --surface:#17212B; --surface-2:#1D2A38; --line:#243140;
+    --txt:#E8EEF4; --muted:#7F91A4; --hint:#5A6B7D;
+    --tg:#2EA6FF; --tg-press:#1E8FE0;
+    --green:#2ECC71; --amber:#F5A623; --red:#E24B4A;
+    --glass:rgba(255,255,255,.14);
+    --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  html[data-theme="light"]{--bg:#E8EDF2;--surface:#FFFFFF;--surface-2:#F2F5F8;--line:#E1E7ED;
+    --txt:#0E1621;--muted:#67788A;--hint:#9AA9B8;--glass:rgba(0,0,0,.08);}
+  html[data-theme="black"]{--bg:#000000;--surface:#0B0B0C;--surface-2:#161618;--line:#252528;
+    --txt:#F2F2F4;--muted:#86868B;--hint:#56565A;--glass:rgba(255,255,255,.12);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--txt);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:16px;transition:background .25s;}
+  .device{width:100%;max-width:390px;height:800px;max-height:95vh;background:var(--surface);
+    border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);border:1px solid var(--line);transition:background .25s;}
+
+  .hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px;
+    display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:58px;}
+  .hdr .ic{width:24px;height:24px;color:var(--tg);flex-shrink:0;}
+  .hdr h1{font-size:16px;font-weight:600;margin:0;}
+  .hdr .sub{font-size:11px;color:var(--muted);font-weight:400;margin-top:1px;}
+
+  /* iOS-style translucent language segmented control */
+  .lang-seg{position:relative;display:flex;background:var(--glass);border-radius:11px;padding:3px;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);}
+  .lang-seg .thumb{position:absolute;top:3px;left:3px;width:calc(50% - 3px);height:calc(100% - 6px);
+    background:var(--glass);border-radius:8px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    box-shadow:0 1px 3px rgba(0,0,0,.18);transition:transform .28s cubic-bezier(.32,.72,0,1);}
+  .lang-seg.en .thumb{transform:translateX(100%);}
+  .lang-seg button{position:relative;z-index:1;border:none;background:transparent;color:var(--muted);
+    font-size:12px;font-weight:600;font-family:var(--mono);padding:5px 11px;cursor:pointer;transition:color .2s;}
+  .lang-seg button.on{color:var(--txt);}
+
+  .body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+  .screen{display:none;padding:16px 16px 24px;animation:fadeIn .35s ease;}
+  .screen.active{display:block;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  .lead{font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 16px;}
+  .field-label{display:block;font-size:11px;color:var(--muted);margin:0 0 6px;font-weight:500;letter-spacing:.02em;}
+  .row{display:flex;gap:10px;}.row>div{flex:1;}
+  input{width:100%;height:46px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+    color:var(--txt);font-size:15px;padding:0 14px;font-family:var(--mono);outline:none;transition:border-color .18s,box-shadow .18s;}
+  input::placeholder{color:var(--hint);}
+  input:focus{border-color:var(--tg);box-shadow:0 0 0 3px rgba(46,166,255,.16);}
+  .coin-input{text-transform:uppercase;font-weight:600;letter-spacing:.04em;}
+  .coin-row{display:flex;gap:8px;align-items:stretch;}
+  .coin-row .coin-input{flex:1;}
+  .coin-open{width:48px;flex-shrink:0;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,transform .08s;}
+  .coin-open:active{transform:scale(.95);border-color:var(--tg);}
+  .coin-open svg{width:18px;height:18px;}
+  .coin-sheet{position:absolute;left:0;right:0;bottom:0;top:0;background:var(--surface);transform:translateY(110%);transition:transform .3s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;z-index:60;border-radius:20px 20px 0 0;}
+  .coin-overlay.on .coin-sheet{transform:translateY(0);}
+  .coin-overlay{position:absolute;inset:0;z-index:55;pointer-events:none;}
+  .coin-overlay.on{pointer-events:auto;}
+  .cs-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;flex-shrink:0;}
+  .cs-head h4{font-size:16px;font-weight:600;margin:0;flex:1;}
+  .cs-close{width:30px;height:30px;border:none;background:var(--surface-2);border-radius:50%;color:var(--muted);cursor:pointer;font-size:16px;}
+  .cs-tabs{display:flex;gap:8px;padding:0 16px 10px;flex-shrink:0;overflow-x:auto;}
+  .cs-tab{white-space:nowrap;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:600;padding:7px 13px;border-radius:9px;cursor:pointer;transition:all .15s;}
+  .cs-tab.on{background:var(--tg);color:#fff;border-color:var(--tg);}
+  .cs-list{flex:1;overflow-y:auto;padding:0 12px 16px;}
+  .cs-item{display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .cs-item:active{background:var(--surface-2);}
+  .cs-rank{font-family:var(--mono);font-size:12px;color:var(--hint);width:24px;flex-shrink:0;}
+  .cs-sym{font-family:var(--mono);font-size:14px;font-weight:600;flex:1;}
+  .cs-price{font-family:var(--mono);font-size:13px;text-align:right;}
+  .cs-chg{font-family:var(--mono);font-size:12px;width:66px;text-align:right;}
+  .cs-msg{padding:30px 18px;text-align:center;color:var(--hint);font-size:12px;line-height:1.5;}
+  .cs-spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--tg);border-radius:50%;animation:spin .8s linear infinite;margin:30px auto;}
+  .coin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .coin-card{display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:15px;cursor:pointer;transition:border-color .15s,transform .08s;font-family:var(--sans);}
+  .coin-card:active{transform:scale(.97);border-color:var(--tg);}
+  .cc-sym{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--txt);}
+  .cc-name{font-size:11px;color:var(--muted);}
+  .lock-wrap{position:relative;border-radius:13px;overflow:hidden;margin-bottom:16px;}
+  .lock-wrap.unlocked .lock-over{display:none;}
+  .lock-wrap .locked-content{filter:blur(7px);pointer-events:none;user-select:none;}
+  .lock-wrap.unlocked .locked-content{filter:none;pointer-events:auto;}
+  .lock-over{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    text-align:center;padding:0 24px;background:linear-gradient(180deg,transparent,var(--bg) 70%);}
+  .lock-txt{font-size:13px;color:var(--txt);margin:0;font-weight:500;line-height:1.4;}
+  .mb{margin-bottom:14px;}
+
+  /* live chart */
+  .chart-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px;}
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
+  .chart-sym{font-family:var(--mono);font-size:15px;font-weight:600;}
+  .chart-price{font-family:var(--mono);font-size:17px;font-weight:600;}
+  .chart-chg{font-family:var(--mono);font-size:12px;font-weight:600;margin-left:6px;}
+  .chart-canvas-wrap{position:relative;height:88px;}
+  canvas{width:100%;height:88px;display:block;}
+  .chart-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--hint);text-align:center;padding:0 10px;line-height:1.5;}
+  .live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);
+    margin-right:5px;animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+  .tog{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:12px;padding:11px 14px;cursor:pointer;transition:border-color .18s;}
+  .tog.on{border-color:var(--green);}
+  .tog .sw{width:42px;height:24px;border-radius:14px;background:var(--line);position:relative;flex-shrink:0;transition:background .22s;}
+  .tog .sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:#fff;transition:transform .22s cubic-bezier(.34,1.56,.64,1);}
+  .tog.on .sw{background:var(--green);}.tog.on .sw::after{transform:translateX(18px);}
+  .tog .lbl{font-size:14px;flex:1;}
+  .pct-field{display:none;width:74px;flex:0 0 auto;height:34px;text-align:center;padding:0 6px;}
+  .tog.on .pct-field{display:block;}
+
+  .price-row{display:flex;align-items:center;justify-content:space-between;margin:16px 0 14px;}
+  .price-row .lab{font-size:13px;color:var(--muted);}
+  .price-tag{font-family:var(--mono);font-size:15px;font-weight:600;color:#F5A623;
+    background:rgba(245,166,35,.14);padding:6px 13px;border-radius:9px;}
+
+  .btn{position:relative;overflow:hidden;width:100%;height:52px;border:none;border-radius:13px;background:var(--tg);
+    color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:transform .08s,background .15s;}
+  .btn:active{transform:scale(.975);background:var(--tg-press);}
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:rip .55s ease-out;pointer-events:none;}
+  @keyframes rip{to{transform:scale(2.6);opacity:0;}}
+  .foot-note{font-size:10.5px;color:var(--hint);text-align:center;margin:9px 0 0;}
+
+  .loading{display:none;flex-direction:column;align-items:center;justify-content:center;padding:70px 0;gap:18px;}
+  .loading.on{display:flex;}
+  .spinner{width:42px;height:42px;border:3px solid var(--line);border-top-color:var(--tg);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading p{font-size:13px;color:var(--muted);margin:0;}
+
+  .gauge-wrap{text-align:center;margin:4px 0;}
+  .gauge{position:relative;width:230px;height:128px;margin:0 auto;}
+  .needle{transform-origin:115px 115px;transform:rotate(-90deg);transition:transform 1.15s cubic-bezier(.22,1,.36,1);}
+  .gauge-val{font-family:var(--mono);font-size:34px;font-weight:600;margin-top:-30px;}
+  .gauge-lvl{font-size:14px;font-weight:600;margin-top:2px;letter-spacing:.03em;text-transform:uppercase;}
+
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0;}
+  .metric{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:13px 14px;}
+  .metric .k{font-size:11px;color:var(--muted);margin:0 0 4px;}
+  .metric .v{font-family:var(--mono);font-size:22px;font-weight:600;margin:0;}
+
+  .verdict-box{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:15px 16px;
+    margin-bottom:16px;border-left:3px solid var(--tg);}
+  .verdict-box h3{font-size:13px;margin:0 0 8px;font-weight:600;}
+  .verdict-box p{font-size:13px;line-height:1.62;color:var(--txt);margin:0;opacity:.92;}
+  .todo{list-style:none;padding:0;margin:0;}
+  .todo li{font-size:13px;color:var(--muted);line-height:1.5;padding:7px 0 7px 22px;position:relative;}
+  .todo li::before{content:"";position:absolute;left:4px;top:13px;width:6px;height:6px;border-radius:50%;background:var(--tg);}
+  .sec-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;font-weight:600;}
+  .verified{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--hint);border-top:1px solid var(--line);padding-top:12px;margin-top:18px;}
+  .verified svg{width:14px;height:14px;}
+  .btn-ghost{width:100%;height:46px;border:1px solid var(--line);background:transparent;color:var(--tg);border-radius:12px;
+    font-size:14px;font-weight:600;cursor:pointer;margin-top:14px;transition:background .15s,transform .08s;}
+  .btn-ghost:active{transform:scale(.98);background:var(--surface-2);}
+
+  .avatar{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#2EA6FF,#5D6FE0);
+    display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;color:#fff;font-family:var(--mono);background-size:cover;background-position:center;}
+  .avatar-wrap{position:relative;width:76px;margin:8px auto 12px;cursor:pointer;}
+  .avatar-edit{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;background:var(--tg);
+    border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;}
+  .avatar-edit svg{width:13px;height:13px;color:#fff;}
+  .pname{cursor:pointer;}
+  .pname:active{opacity:.6;}
+  .pname{text-align:center;font-size:19px;font-weight:600;margin:0;}
+  .phandle{text-align:center;font-size:13px;color:var(--muted);margin:3px 0 22px;font-family:var(--mono);}
+  .pstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
+  .pstat{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:15px 8px;text-align:center;}
+  .pstat .n{font-family:var(--mono);font-size:22px;font-weight:600;}
+  .pstat .l{font-size:11px;color:var(--muted);margin-top:3px;}
+  .hist{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;overflow:hidden;}
+  .hist-item{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line);}
+  .hist-item:last-child{border-bottom:none;}
+  .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .hist-item .coin{font-family:var(--mono);font-size:14px;font-weight:600;flex:1;}
+  .hist-item .meta{font-size:11px;color:var(--muted);font-family:var(--mono);}
+
+  .set-group{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:18px;}
+  .set-row{display:flex;align-items:center;gap:12px;padding:14px 15px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s;}
+  .set-row:last-child{border-bottom:none;}
+  .set-row:active{background:var(--line);}
+  .set-row .si{width:20px;height:20px;color:var(--tg);flex-shrink:0;}
+  .set-row .txt{flex:1;font-size:14px;}
+  .set-row .val{font-size:13px;color:var(--muted);font-family:var(--mono);display:flex;align-items:center;gap:6px;}
+  .set-row .chev{width:16px;height:16px;color:var(--hint);}
+  .about{font-size:11px;color:var(--hint);text-align:center;line-height:1.6;margin-top:4px;}
+
+  .faq-item{background:var(--surface-2);border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden;}
+  .faq-q{display:flex;align-items:center;gap:10px;padding:14px 15px;cursor:pointer;font-size:14px;font-weight:500;}
+  .faq-q .qchev{width:16px;height:16px;color:var(--muted);margin-left:auto;transition:transform .25s;flex-shrink:0;}
+  .faq-item.open .qchev{transform:rotate(180deg);}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .faq-a p{font-size:13px;color:var(--muted);line-height:1.6;margin:0;padding:0 15px 14px;}
+  .disclaimer{background:rgba(226,75,74,.08);border:1px solid rgba(226,75,74,.3);border-radius:13px;padding:14px 15px;margin-top:16px;}
+  .disclaimer p{font-size:12px;color:var(--txt);line-height:1.6;margin:0;opacity:.85;}
+
+  /* bottom sheet (theme picker) */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:50;}
+  .overlay.on{opacity:1;pointer-events:auto;}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:20px 20px 0 0;
+    padding:8px 16px calc(16px + env(safe-area-inset-bottom));transform:translateY(110%);transition:transform .3s cubic-bezier(.32,.72,0,1);border-top:1px solid var(--line);}
+  .overlay.on .sheet{transform:translateY(0);}
+  .sheet-grip{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 14px;}
+  .sheet h4{font-size:15px;font-weight:600;margin:0 0 12px;text-align:center;}
+  .opt{display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;cursor:pointer;transition:background .15s;}
+  .opt:active{background:var(--surface-2);}
+  .opt .sw-prev{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);flex-shrink:0;}
+  .opt .name{flex:1;font-size:14px;}
+  .opt .ck{width:20px;height:20px;color:var(--tg);opacity:0;}
+  .opt.sel .ck{opacity:1;}
+
+  .nav{display:flex;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0;padding:6px 0 8px;}
+  .nav button{flex:1;border:none;background:transparent;color:var(--muted);display:flex;flex-direction:column;
+    align-items:center;gap:3px;padding:6px 0;cursor:pointer;transition:color .15s,transform .1s;font-family:var(--sans);}
+  .nav button:active{transform:scale(.9);}
+  .nav button.on{color:var(--tg);}
+  .nav button svg{width:24px;height:24px;}
+  .nav button span{font-size:10px;font-weight:500;}
+  /* mode + collapse + tradingview */
+  .bal-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:16px;}
+  .bal-lab{font-size:12px;color:var(--muted);}
+  .bal-val{font-family:var(--mono);font-size:15px;font-weight:600;color:#F5A623;}
+  .pay-box{text-align:center;padding:4px 0 6px;}
+  .pay-amt{font-family:var(--mono);font-size:32px;font-weight:600;color:#F5A623;margin:6px 0 2px;}
+  .pay-sub{font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.5;}
+  .pay-warn{font-size:12px;color:var(--red);margin:10px 0 0;}
+  .pay-opt{display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:13px;padding:14px;cursor:pointer;margin-bottom:10px;text-align:left;transition:border-color .15s,transform .08s;}
+  .pay-opt:active{transform:scale(.98);border-color:var(--tg);}
+  .pay-opt svg{width:24px;height:24px;flex-shrink:0;}
+  .po-txt{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .po-name{font-size:14px;font-weight:600;}
+  .po-meta{font-size:11px;color:var(--muted);font-family:var(--mono);}
+  .po-chev{width:18px;height:18px;color:var(--hint);}
+  .mode-seg{width:100%;margin-bottom:16px;}
+  .mode-seg button{flex:1;padding:8px 4px;font-size:11px;}
+  .tv-wrap{position:relative;height:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;background:var(--surface-2);}
+  .tv-wrap iframe{border-radius:14px;}
+  .tv-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--hint);text-align:center;padding:0 18px;line-height:1.5;z-index:1;}
+  .collapse{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface-2);}
+  .collapse-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;font-size:14px;font-weight:600;font-family:var(--mono);letter-spacing:.04em;}
+  .collapse-head .cchev{width:18px;height:18px;color:var(--muted);transition:transform .28s;}
+  .collapse.open .cchev{transform:rotate(180deg);}
+  .collapse-body{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .collapse-inner{padding:2px 14px 14px;}
+  .side-seg{margin-bottom:14px;}
+  .side-seg button{flex:1;padding:7px 6px;font-size:12px;}
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;}}
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="hdr">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>
+    <div style="flex:1">
+      <h1 id="hdrTitle">NoRekt</h1>
+      <div class="sub" id="hdrSub" data-i18n="hdrSub">трезвый разбор позиции</div>
+    </div>
+    <div class="lang-seg" id="langSeg">
+      <div class="thumb"></div>
+      <button id="lsRu" class="on" onclick="setLang('ru')">RU</button>
+      <button id="lsEn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- INPUT -->
+    <section class="screen active" id="s-input">
+      <div class="lang-seg mode-seg" id="modeSeg">
+        <div class="thumb" id="modeThumb" style="width:calc(50% - 3px)"></div>
+        <button class="on" onclick="setMode('view')" data-i18n="modeView">Обзор</button>
+        <button onclick="setMode('in')" data-i18n="modeIn">В сделке</button>
+      </div>
+
+      <p class="lead" id="leadText" data-i18n="leadPlan">Оцени риск сделки до входа — сколько депозита ты реально поставишь.</p>
+
+      <label class="field-label" data-i18n="lblCoin">Монета</label>
+      <div class="coin-row mb">
+        <input id="fCoin" class="coin-input" value="BTC" maxlength="8" autocomplete="off" spellcheck="false">
+        <button class="coin-open" onclick="openCoins()" aria-label="coins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+      </div>
+
+      <div class="tv-wrap"><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
+
+      <div id="inFields" style="display:none">
+        <label class="field-label" data-i18n="lblSide">Направление</label>
+        <div class="lang-seg side-seg" id="sideSeg">
+          <div class="thumb"></div>
+          <button class="on" onclick="setSide('long')" data-i18n="sideLong">Лонг</button>
+          <button onclick="setSide('short')" data-i18n="sideShort">Шорт</button>
+        </div>
+        <label class="field-label" data-i18n="lblEntry">Цена входа $</label>
+        <input id="fEntry" type="number" inputmode="decimal" class="mb" placeholder="0.00">
+      </div>
+
+      <div id="tradeFields">
+      <div class="row mb">
+        <div><label class="field-label" data-i18n="lblLev">Плечо</label><input id="fLev" type="number" inputmode="numeric" value="25" min="1" max="125"></div>
+        <div><label class="field-label" data-i18n="lblSize">Маржа сделки $</label><input id="fSize" type="number" inputmode="numeric" value="500"></div>
+      </div>
+
+      <label class="field-label" data-i18n="lblBal">Общий баланс $</label>
+      <input id="fBal" type="number" inputmode="numeric" value="10000" class="mb">
+
+      <div class="collapse" id="tpsl">
+        <div class="collapse-head" onclick="toggleTpsl()">
+          <span>TP / SL</span>
+          <svg class="cchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="collapse-body" id="tpslBody">
+          <div class="collapse-inner">
+            <label class="field-label" data-i18n="lblStop">Стоп-лосс (SL)</label>
+            <div class="tog mb" id="stopTog" onclick="toggleTog('stop',event)">
+              <div class="sw"></div><span class="lbl" data-i18n="stopLbl">Стоп установлен</span>
+              <input class="pct-field" id="fStop" type="number" inputmode="decimal" value="2" placeholder="%" onclick="event.stopPropagation()">
+            </div>
+            <label class="field-label" data-i18n="lblTp">Тейк-профит (TP)</label>
+            <div class="tog" id="tpTog" onclick="toggleTog('tp',event)">
+              <div class="sw"></div><span class="lbl" data-i18n="tpLbl">Тейк установлен</span>
+              <input class="pct-field" id="fTp" type="number" inputmode="decimal" value="6" placeholder="%" onclick="event.stopPropagation()">
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <button class="btn" id="checkBtn" onclick="runCheck(event)" data-i18n="btnCheck">Проверить риск</button>
+    </section>
+
+    <!-- LOADING -->
+    <section class="screen" id="s-loading"><div class="loading on"><div class="spinner"></div><p data-i18n="loading">Считаю риск позиции…</p></div></section>
+
+    <!-- VERDICT -->
+    <section class="screen" id="s-verdict">
+      <div class="gauge-wrap">
+        <div class="gauge">
+          <svg viewBox="0 0 230 128" width="230" height="128">
+            <path d="M20 115 A95 95 0 0 1 50 44" fill="none" stroke="#2ECC71" stroke-width="13" stroke-linecap="round"/>
+            <path d="M58 38 A95 95 0 0 1 115 20" fill="none" stroke="#9ACD5B" stroke-width="13" stroke-linecap="round"/>
+            <path d="M115 20 A95 95 0 0 1 172 38" fill="none" stroke="#F5A623" stroke-width="13" stroke-linecap="round"/>
+            <path d="M180 44 A95 95 0 0 1 210 115" fill="none" stroke="#E24B4A" stroke-width="13" stroke-linecap="round"/>
+            <g class="needle" id="needle"><line x1="115" y1="115" x2="115" y2="42" stroke="var(--txt)" stroke-width="3.5" stroke-linecap="round"/><circle cx="115" cy="115" r="8" fill="var(--txt)"/></g>
+          </svg>
+        </div>
+        <div class="gauge-val" id="gVal">—</div>
+        <div class="gauge-lvl" id="gLvl">—</div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><p class="k" data-i18n="mRisk">Депозит под риском</p><p class="v" id="mRisk">—</p></div>
+        <div class="metric"><p class="k" data-i18n="mLiq">До ликвидации</p><p class="v" id="mLiq">—</p></div>
+        <div class="metric"><p class="k" data-i18n="mLev">Плечо</p><p class="v" id="mLev">—</p></div>
+        <div class="metric"><p class="k" data-i18n="mRr">Риск/прибыль</p><p class="v" id="mRr">—</p></div>
+      </div>
+      <div class="verdict-box" id="verdictBox"><h3 data-i18n="verdictH">Вердикт</h3><p id="verdictText">—</p></div>
+      <p class="sec-title" data-i18n="todoH">Что делать</p>
+      <ul class="todo" id="todoList"></ul>
+      <div class="verified"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="verified">разбор проверен вручную</span></div>
+      <button class="btn-ghost" onclick="show('input')" data-i18n="btnNew">← Новый разбор</button>
+    </section>
+
+    <!-- OVERVIEW (view mode) -->
+    <section class="screen" id="s-overview">
+      <p class="lead" style="margin-bottom:4px"><span id="ovCoin" style="font-family:var(--mono);font-weight:600;font-size:18px;color:var(--txt)">BTC</span></p>
+      <p class="lead" id="ovIntro" style="margin-top:0"></p>
+      <div class="verdict-box"><h3 data-i18n="ovTrend">Тренд</h3><p data-i18n="ovDemoTrend">[ИИ опишет текущий тренд и его силу]</p></div>
+      <div class="verdict-box"><h3 data-i18n="ovVol">Волатильность</h3><p data-i18n="ovDemoVol">[ИИ оценит волатильность и риск резких движений]</p></div>
+
+      <div class="lock-wrap" id="ovLocked">
+        <div class="locked-content">
+          <div class="verdict-box"><h3 data-i18n="ovLevels">Ключевые уровни</h3><p data-i18n="ovDemoLevels">[ИИ выделит ближайшие поддержки и сопротивления]</p></div>
+          <div class="verdict-box"><h3 data-i18n="ovSum">Резюме</h3><p data-i18n="ovDemoSum">[ИИ даст краткое резюме и на что обратить внимание]</p></div>
+        </div>
+        <div class="lock-over">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;color:var(--tg)"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <p class="lock-txt" data-i18n="ovLockTxt">Открой полный обзор — ключевые уровни и резюме</p>
+          <button class="btn" style="max-width:240px;margin:0 auto;" onclick="unlockOverview()" data-i18n="ovUnlock">Открыть за 30 ★ · 0.5 $</button>
+        </div>
+      </div>
+
+      <div class="disclaimer"><p data-i18n="ovNote">Демо-обзор. Не является сигналом или советом покупать/продавать.</p></div>
+      <button class="btn-ghost" onclick="show('input')" data-i18n="btnNew">← Новый разбор</button>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="screen" id="s-profile">
+      <div class="avatar-wrap" onclick="document.getElementById('avatarFile').click()">
+        <div class="avatar" id="avatarEl">A</div>
+        <div class="avatar-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+      </div>
+      <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="changeAvatar(event)">
+      <p class="pname" id="pnameEl" onclick="editName()">Alex</p>
+      <p class="phandle">@alex_trades</p>
+      <div class="pstats" style="grid-template-columns:1fr;">
+        <div class="pstat"><div class="n"><span id="balUsdt">0.00</span> <span style="font-size:14px;color:var(--muted)">USDT</span></div><div class="l" data-i18n="stUsdt">Баланс USDT</div></div>
+      </div>
+      <div class="set-group" style="margin-bottom:22px">
+        <div class="set-row" onclick="navTo('deposit')">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14.5" r="1.5"/></svg>
+          <span class="txt" data-i18n="setDeposit">Депозит</span>
+          <span class="val"><span data-i18n="usdtTag">USDT</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </div>
+      <p class="sec-title" data-i18n="histH">История разборов</p>
+      <div class="hist">
+        <div class="hist-item"><span class="dot" style="background:var(--red)"></span><span class="coin">ETH 25x</span><span class="meta" data-i18n="riskHigh">высокий</span></div>
+        <div class="hist-item"><span class="dot" style="background:var(--amber)"></span><span class="coin">SOL 10x</span><span class="meta" data-i18n="riskMid">средний</span></div>
+        <div class="hist-item"><span class="dot" style="background:var(--green)"></span><span class="coin">BTC 3x</span><span class="meta" data-i18n="riskLow">низкий</span></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="screen" id="s-settings">
+      <p class="sec-title" data-i18n="setGeneral">Основное</p>
+      <div class="set-group">
+        <div class="set-row" style="cursor:default">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+          <span class="txt" data-i18n="setLang">Язык</span>
+          <div class="lang-seg" id="langSeg2"><div class="thumb"></div><button class="on" onclick="setLang('ru')">RU</button><button onclick="setLang('en')">EN</button></div>
+        </div>
+        <div class="set-row" onclick="openSheet()">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <span class="txt" data-i18n="setTheme">Тема</span>
+          <span class="val"><span id="themeVal" data-i18n="themeDark">тёмная</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+        <div class="set-row" style="cursor:default">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="txt" data-i18n="setNotif">Уведомления</span>
+          <div class="tog on" style="border:none;background:transparent;padding:0;width:auto;flex:0" onclick="this.classList.toggle('on')"><div class="sw"></div></div>
+        </div>
+      </div>
+
+      <p class="sec-title" data-i18n="setPay">Оплата</p>
+      <div class="set-group">
+        <div class="set-row" style="cursor:default">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>
+          <span class="txt" data-i18n="setPrice">Цена за разбор</span>
+          <span class="val" style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;">80&#8202;★</span><span style="color:var(--hint)">|</span><span>1&#8202;$</span></span>
+        </div>
+      </div>
+
+      <p class="sec-title" data-i18n="setHelp">Справка</p>
+      <div class="set-group">
+        <div class="set-row" onclick="navTo('faq')">
+          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+          <span class="txt" data-i18n="setFaq">FAQ и о боте</span>
+          <span class="val"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </div>
+      <p class="about" data-i18n="about">NoRekt — прототип. Разборы делаются вручную; авто-режим появится после набора проверенных примеров.</p>
+    </section>
+
+    <!-- FAQ -->
+    <section class="screen" id="s-faq">
+      <p class="lead" data-i18n="faqIntro">Коротко о том, что делает бот и чего он не делает.</p>
+      <div id="faqList"></div>
+      <div class="disclaimer"><p id="disclaimerText"></p></div>
+      <button class="btn-ghost" onclick="navTo('settings')" data-i18n="btnBack">← Назад</button>
+    </section>
+
+    <!-- DEPOSIT -->
+    <section class="screen" id="s-deposit">
+      <div class="chart-card" style="text-align:center;padding:16px 14px;margin-bottom:16px;">
+        <p style="margin:0;font-size:12px;color:var(--muted)" data-i18n="depBal">Баланс USDT</p>
+        <p style="margin:6px 0 0;font-family:var(--mono);font-size:28px;font-weight:600;"><span id="depBalVal">0.00</span> <span style="font-size:15px;color:var(--muted)">USDT</span></p>
+      </div>
+
+      <!-- step 1: choose coin -->
+      <div id="depStep1">
+        <label class="field-label" data-i18n="depPickCoin">Чем оплатить</label>
+        <div class="coin-grid">
+          <button class="coin-card" onclick="pickPayCoin('BTC')"><span class="cc-sym">BTC</span><span class="cc-name">Bitcoin</span></button>
+          <button class="coin-card" onclick="pickPayCoin('USDT')"><span class="cc-sym">USDT</span><span class="cc-name">Tether</span></button>
+          <button class="coin-card" onclick="pickPayCoin('USDC')"><span class="cc-sym">USDC</span><span class="cc-name">USD Coin</span></button>
+          <button class="coin-card" onclick="pickPayCoin('ETH')"><span class="cc-sym">ETH</span><span class="cc-name">Ethereum</span></button>
+        </div>
+        <button class="btn-ghost" onclick="backFromPay()" data-i18n="btnBack">← Назад</button>
+      </div>
+
+      <!-- step 2: network + amount + requisites -->
+      <div id="depStep2" style="display:none">
+        <button class="btn-ghost" style="width:auto;margin:0 0 14px;padding:7px 12px;font-size:13px;" onclick="depBack()" data-i18n="depChangeCoin">← Другая монета</button>
+        <label class="field-label" data-i18n="depNetwork">Сеть пополнения</label>
+        <div class="lang-seg" id="netSeg" style="width:100%;margin-bottom:16px;">
+          <div class="thumb" id="netThumb"></div>
+        </div>
+
+        <label class="field-label" data-i18n="depAmount">Сколько пополнить</label>
+        <div class="row mb" style="align-items:stretch">
+          <input id="depAmount" type="number" inputmode="decimal" placeholder="0.00" style="flex:1">
+          <button class="btn" style="width:auto;flex:0 0 auto;height:46px;padding:0 16px;font-size:14px;" onclick="genRequisites(event)" data-i18n="depGen">Получить</button>
+        </div>
+
+        <div id="depReq" style="display:none">
+          <label class="field-label" data-i18n="depSendExact">Отправь ровно эту сумму</label>
+          <div class="chart-card" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span id="depReqAmount" style="font-family:var(--mono);font-size:17px;font-weight:600;flex:1;color:#F5A623;">—</span>
+            <button class="btn-ghost" style="width:auto;margin:0;padding:8px 14px;flex-shrink:0;" onclick="copyVal(this,depReqAmount.textContent)" data-i18n="depCopy">Копировать</button>
+          </div>
+          <label class="field-label" data-i18n="depAddr">Адрес для пополнения</label>
+          <div class="chart-card" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span id="depAddrVal" style="font-family:var(--mono);font-size:13px;word-break:break-all;flex:1;line-height:1.5;">—</span>
+            <button class="btn-ghost" style="width:auto;margin:0;padding:8px 14px;flex-shrink:0;" onclick="copyVal(this,depAddrVal.textContent)" data-i18n="depCopy">Копировать</button>
+          </div>
+          <p style="font-size:11px;color:var(--red);margin:0 0 16px;line-height:1.5;" data-i18n="depExactWarn">Отправь ровно эту сумму — последние цифры это метка платежа, по ней бот узнаёт, что перевод твой. Другая сумма не зачислится автоматически.</p>
+          <button class="btn" onclick="depDone(event)" data-i18n="depPaid">Я оплатил</button>
+        </div>
+
+        <p style="font-size:11px;color:var(--muted);margin:0 0 16px;line-height:1.5;" id="depMinNote" data-i18n="depMin">Отправляй только выбранную монету в выбранной сети — иначе средства будут потеряны.</p>
+        <div class="disclaimer"><p data-i18n="depNote">Метку суммы и зачисление выдаёт сервер, привязывая платёж к твоему Telegram ID. В превью это демонстрация — баланс не меняется.</p></div>
+      </div>
+    </section>
+
+    <!-- STARS PAYMENT -->
+    <section class="screen" id="s-stars">
+      <div class="pay-box" style="padding-top:14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F5A623" stroke-width="2" style="width:46px;height:46px;margin:0 auto 6px;display:block"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>
+        <h4 data-i18n="starsTitle">Оплата звёздами</h4>
+        <div class="pay-amt" id="starsAmt" style="display:flex;align-items:center;justify-content:center;gap:6px;"><span style="font-size:24px">★</span>80</div>
+        <p class="pay-sub" data-i18n="starsSub">Передать боту 80 Telegram Stars за разбор.</p>
+        <button class="btn" onclick="payStars(event)" id="starsBtn" data-i18n="starsPay">Передать 80 ★</button>
+        <p style="font-size:11px;color:var(--hint);margin:12px 0 0;line-height:1.5;" id="starsNote"></p>
+      </div>
+      <button class="btn-ghost" onclick="backFromPay()" data-i18n="btnBack">← Назад</button>
+    </section>
+
+  </div>
+
+  <div class="nav">
+    <button class="on" id="n-input" onclick="navTo('input')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg><span data-i18n="navCheck">Разбор</span></button>
+    <button id="n-profile" onclick="navTo('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span data-i18n="navProfile">Профиль</span></button>
+    <button id="n-settings" onclick="navTo('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 6 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 18 4.6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H22a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="navSettings">Настройки</span></button>
+  </div>
+
+  <!-- coin selector -->
+  <div class="coin-overlay" id="coinOverlay">
+    <div class="coin-sheet">
+      <div class="cs-head">
+        <h4 data-i18n="csTitle">Выбор монеты</h4>
+        <button class="cs-close" onclick="closeCoins()">✕</button>
+      </div>
+      <div class="cs-tabs">
+        <button class="cs-tab on" data-sort="cap" onclick="setCoinTab('cap')" data-i18n="csCap">Топ-50</button>
+        <button class="cs-tab" data-sort="gain" onclick="setCoinTab('gain')" data-i18n="csGain">Рост 24ч</button>
+        <button class="cs-tab" data-sort="lose" onclick="setCoinTab('lose')" data-i18n="csLose">Падение 24ч</button>
+        <button class="cs-tab" data-sort="vol" onclick="setCoinTab('vol')" data-i18n="csVol">Объём</button>
+      </div>
+      <div class="cs-list" id="coinList"></div>
+    </div>
+  </div>
+
+  <!-- pay sheet: choose method -->
+  <div class="overlay" id="payOverlay" onclick="if(event.target===this)closePay()">
+    <div class="sheet">
+      <div class="sheet-grip"></div>
+      <div class="pay-box">
+        <h4 data-i18n="payTitle">Как оплатить разбор?</h4>
+        <p class="pay-sub" data-i18n="paySubChoose">Стоимость: 80 ★ или 1 $</p>
+        <div class="pay-opt" onclick="payWith('stars')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#F5A623"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>
+          <span class="po-txt"><span class="po-name" data-i18n="payStars">Telegram Stars</span><span class="po-meta">80 ★</span></span>
+          <svg class="po-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="pay-opt" onclick="payWith('usdt')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#2ECC71"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg>
+          <span class="po-txt"><span class="po-name" data-i18n="payUsdt">Баланс USDT</span><span class="po-meta" id="payUsdtMeta">1 $ · баланс 0.00</span></span>
+          <svg class="po-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- theme sheet -->
+  <div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()">
+    <div class="sheet">
+      <div class="sheet-grip"></div>
+      <h4 data-i18n="pickTheme">Выбери тему</h4>
+      <div class="opt" data-t="dark" onclick="setTheme('dark')"><span class="sw-prev" style="background:#17212B"></span><span class="name" data-i18n="themeDark">тёмная</span><svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="opt" data-t="black" onclick="setTheme('black')"><span class="sw-prev" style="background:#000"></span><span class="name" data-i18n="themeBlack">чёрная (OLED)</span><svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="opt" data-t="light" onclick="setTheme('light')"><span class="sw-prev" style="background:#fff"></span><span class="name" data-i18n="themeLight">светлая</span><svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const I18N={
+ ru:{hdrSub:"трезвый разбор позиции",leadPlan:"Оцени риск сделки до входа — сколько депозита ты реально поставишь.",leadIn:"Разбор твоей открытой позиции — насколько ты близко к потере.",
+  modePlan:"Сделка",modeIn:"В сделке",modeView:"Обзор",lblSide:"Направление",sideLong:"Лонг",sideShort:"Шорт",lblEntry:"Точка входа $",btnCheckIn:"Разобрать позицию",
+  leadView:"Посмотри монету — ИИ даст обзор тренда, волатильности и ключевых уровней.",btnView:"Получить анализ ИИ",
+  ovTrend:"Тренд",ovVol:"Волатильность",ovLevels:"Ключевые уровни",ovSum:"Резюме",
+  ovDemoTrend:"[ИИ опишет текущий тренд и его силу]",ovDemoVol:"[ИИ оценит волатильность и риск резких движений]",ovDemoLevels:"[ИИ выделит ближайшие поддержки и сопротивления]",ovDemoSum:"[ИИ даст краткое резюме и на что обратить внимание]",
+  ovIntro:"Демонстрационный обзор {coin}. В рабочей версии ИИ разбирает монету по реальным рыночным данным.",ovNote:"Демо-обзор. Не является сигналом или советом покупать/продавать.",
+  tvMsg:"график недоступен в превью — заработает на твоём хостинге или локально",liqAt:" Ликвидация около ${p}.",
+  lblCoin:"Монета",lblLev:"Плечо",lblSize:"Маржа сделки $",lblBal:"Общий баланс $",lblStop:"Стоп-лосс",stopLbl:"Стоп установлен",
+  lblTp:"Тейк-профит",tpLbl:"Тейк установлен",priceLab:"Стоимость разбора",btnCheck:"Проверить риск",
+  footPay:"Оплата через Telegram Stars · ответ за ~15 мин",loading:"Считаю риск позиции…",
+  mRisk:"Депозит под риском",mLiq:"До ликвидации",mLev:"Плечо",mRr:"Риск/прибыль",verdictH:"Вердикт",todoH:"Что делать",
+  verified:"разбор проверен вручную",btnNew:"← Новый разбор",btnBack:"← Назад",
+  stReviews:"разборов",stStars:"Баланс Stars",stUsdt:"Баланс USDT",histH:"История разборов",riskHigh:"высокий",riskMid:"средний",riskLow:"низкий",
+  balLab:"Баланс",payTitle:"Как оплатить разбор?",paySubChoose:"Стоимость: 80 ★ или 1 $",payStars:"Telegram Stars",payUsdt:"Баланс USDT",
+  starsTitle:"Оплата звёздами",starsSub:"Оплатить разбор — 80 Telegram Stars.",starsPay:"Оплатить 80 ★",topupStars:"Пополнить звёздами",
+  starsPreview:"В превью оплата недоступна — заработает внутри бота. Запускаю разбор для демонстрации.",starsBot:"Открываю счёт на 80 ★ в Telegram…",
+  usdtLow:"На балансе {bal} USDT — нужно 1. Открываю пополнение.",
+  csTitle:"Выбор монеты",csCap:"Топ-50",csGain:"Рост 24ч",csLose:"Падение 24ч",csVol:"Объём",csLoad:"Загружаю рынок…",csErr:"Данные недоступны в превью — заработают на хостинге или локально.",namePrompt:"Новое имя:",
+  depPickCoin:"Чем оплатить",depChangeCoin:"← Другая монета",depAmount:"Сколько пополнить",depGen:"Получить",depSendExact:"Отправь ровно эту сумму",
+  depExactWarn:"Отправь ровно эту сумму — последние цифры это метка платежа, по ней бот узнаёт, что перевод твой. Другая сумма не зачислится автоматически.",
+  depNoAddr:"Адрес для этой монеты ещё не настроен — добавь свой на бэкенде.",depEnterAmount:"Введи сумму больше нуля.",depPaid:"Я оплатил",depWaiting:"Платёж проверяется. После подтверждения сети баланс пополнится. Можешь сделать ещё одно пополнение.",
+  ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 30 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 30 ★ или 0.5 $",
+  setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
+  setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
+  setDeposit:"Депозит",usdtTag:"USDT",depBal:"Баланс USDT",depNetwork:"Сеть пополнения",depAddr:"Адрес для пополнения",depCopy:"Копировать",depCopied:"Скопировано",
+  depMin:"Минимум 1 USDT. Отправляй только USDT в выбранной сети — иначе средства будут потеряны.",
+  depNote:"Прототип: адрес демонстрационный, реальные средства не принимаются. Приём депозита подключается на бэкенде при запуске.",
+  about:"NoRekt — прототип. Разборы делаются вручную; авто-режим появится после набора проверенных примеров.",
+  navCheck:"Разбор",navProfile:"Профиль",navSettings:"Настройки",
+  lvlHigh:"Высокий риск",lvlMid:"Средний риск",lvlLow:"Низкий риск",noStop:"без стопа",none:"нет",
+  vHigh:"Под риском {risk}% депозита. {coin} {lev}x {stop} — позицию вынесет движением всего на {liq}%, это рядовой дневной фитиль. Это не сделка с риск-менеджментом, это ставка.",
+  vMid:"Под риском {risk}% депозита на {lev}x. Терпимо, но {coin} спокойно ходит против тебя, и без дисциплины {risk}% превращаются в серию потерь.",
+  vLow:"Под риском всего {risk}% депозита{rr}. Плечо {lev}x с запасом {liq}% до ликвидации — это грамотный контроль риска, так и надо.",
+  rrLow:" при RR 1:{rr}",
+  tHigh:["Поставь стоп сейчас — без него риск не ограничен.","Сократи маржу до 1–2% депозита.","Снизь плечо под волатильность монеты."],
+  tMid:["Проверь, что стоп реально стоит, а не в голове.","Подумай, не велик ли риск к балансу.","Зафиксируй RR не хуже 1:2."],
+  tLow:["Держи дисциплину — это рабочая конфигурация.","Не наращивай риск на эмоциях.","Фиксируй, что сработало, для следующих сделок."],
+  faqIntro:"Коротко о том, что делает бот и чего он не делает.",
+  faq:[["Что делает этот бот?","Анализирует риск твоей открытой позиции — маржу, плечо, стоп, тейк и расстояние до ликвидации — и даёт трезвую оценку, насколько ты близко к потере. Он не предсказывает цену."],
+       ["Как считается риск?","По доле депозита под риском: сколько ты реально теряешь, если позицию вынесет. Учитывается плечо, наличие и расстояние стопа, объём к балансу и буфер до ликвидации."],
+       ["Это сигналы или советы покупать?","Нет. Бот не говорит, что покупать или продавать, и не даёт инвестиционных или финансовых советов."],
+       ["Кто отвечает за мои сделки?","Только ты. Это вспомогательный инструмент для твоего собственного решения, а не рекомендация."]],
+  disclaimer:"NoRekt не является финансовым, инвестиционным или торговым советником. Все оценки носят справочный характер и могут быть неточными. Решения о сделках ты принимаешь самостоятельно и несёшь полную ответственность за свои действия и возможные потери. Торговля с плечом сопряжена с высоким риском потери средств."},
+ en:{hdrSub:"a sober read on your position",leadPlan:"Size up a trade before you enter — how much of your deposit you'd really put on the line.",leadIn:"A read on your open position — how close you are to a loss.",
+  modePlan:"Trade",modeIn:"In trade",modeView:"View",lblSide:"Direction",sideLong:"Long",sideShort:"Short",lblEntry:"Entry point $",btnCheckIn:"Analyze position",
+  leadView:"Look up a coin — the AI gives an overview of trend, volatility and key levels.",btnView:"Get AI analysis",
+  ovTrend:"Trend",ovVol:"Volatility",ovLevels:"Key levels",ovSum:"Summary",
+  ovDemoTrend:"[AI will describe the current trend and its strength]",ovDemoVol:"[AI will assess volatility and the risk of sharp moves]",ovDemoLevels:"[AI will flag nearby support and resistance]",ovDemoSum:"[AI will give a short summary and what to watch]",
+  ovIntro:"Demo overview of {coin}. In the live version the AI analyzes the coin on real market data.",ovNote:"Demo overview. Not a signal or advice to buy/sell.",
+  tvMsg:"chart unavailable in preview — works on your own hosting or locally",liqAt:" Liquidation around ${p}.",
+  lblCoin:"Coin",lblLev:"Leverage",lblSize:"Trade margin $",lblBal:"Total balance $",lblStop:"Stop-loss",stopLbl:"Stop-loss set",
+  lblTp:"Take-profit",tpLbl:"Take-profit set",priceLab:"Review price",btnCheck:"Check risk",
+  footPay:"Pay with Telegram Stars · reply in ~15 min",loading:"Calculating position risk…",
+  mRisk:"Deposit at risk",mLiq:"To liquidation",mLev:"Leverage",mRr:"Risk/reward",verdictH:"Verdict",todoH:"What to do",
+  verified:"reviewed manually",btnNew:"← New review",btnBack:"← Back",
+  stReviews:"reviews",stStars:"Stars balance",stUsdt:"USDT balance",histH:"Review history",riskHigh:"high",riskMid:"medium",riskLow:"low",
+  balLab:"Balance",payTitle:"How to pay for the review?",paySubChoose:"Cost: 80 ★ or 1 $",payStars:"Telegram Stars",payUsdt:"USDT balance",
+  starsTitle:"Pay with Stars",starsSub:"Pay for the review — 80 Telegram Stars.",starsPay:"Pay 80 ★",topupStars:"Top up with Stars",
+  starsPreview:"Payment isn't available in preview — it works inside the bot. Running the review for demo.",starsBot:"Opening an 80 ★ invoice in Telegram…",
+  usdtLow:"Balance is {bal} USDT — 1 is required. Opening top-up.",
+  csTitle:"Choose a coin",csCap:"Top 50",csGain:"Gainers 24h",csLose:"Losers 24h",csVol:"Volume",csLoad:"Loading market…",csErr:"Data unavailable in preview — works on hosting or locally.",namePrompt:"New name:",
+  depPickCoin:"Pay with",depChangeCoin:"← Other coin",depAmount:"Amount to top up",depGen:"Get",depSendExact:"Send exactly this amount",
+  depExactWarn:"Send exactly this amount — the last digits are a payment tag the bot uses to recognize your transfer. A different amount won't be credited automatically.",
+  depNoAddr:"No address set for this coin yet — add yours on the backend.",depEnterAmount:"Enter an amount greater than zero.",depPaid:"I've paid",depWaiting:"Payment is being verified. Once the network confirms it, your balance updates. You can make another top-up.",
+  ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 30 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 30 ★ or 0.5 $",
+  setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
+  setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
+  setDeposit:"Deposit",usdtTag:"USDT",depBal:"USDT balance",depNetwork:"Deposit network",depAddr:"Deposit address",depCopy:"Copy",depCopied:"Copied",
+  depMin:"Minimum 1 USDT. Send only USDT on the selected network — otherwise funds will be lost.",
+  depNote:"Prototype: the address is a demo, real funds are not accepted. Deposit handling is wired up on the backend at launch.",
+  about:"NoRekt is a prototype. Reviews are done manually; auto mode comes after enough proven examples.",
+  navCheck:"Review",navProfile:"Profile",navSettings:"Settings",
+  lvlHigh:"High risk",lvlMid:"Medium risk",lvlLow:"Low risk",noStop:"no stop",none:"no",
+  vHigh:"{risk}% of your deposit is at risk. {coin} {lev}x {stop} — the position gets wiped by just a {liq}% move, an ordinary daily wick. This isn't a managed trade, it's a bet.",
+  vMid:"{risk}% of deposit at risk on {lev}x. Tolerable, but {coin} easily moves against you, and without discipline {risk}% turns into a losing streak.",
+  vLow:"Only {risk}% of deposit at risk{rr}. {lev}x leverage with a {liq}% buffer to liquidation — this is proper risk control.",
+  rrLow:" at RR 1:{rr}",
+  tHigh:["Set a stop now — without it risk is uncapped.","Cut margin to 1–2% of deposit.","Lower leverage to match the coin's volatility."],
+  tMid:["Confirm the stop is actually placed, not in your head.","Reconsider if the risk is too big vs balance.","Lock in an RR of at least 1:2."],
+  tLow:["Keep the discipline — this is a working setup.","Don't add risk on emotion.","Note what worked for next trades."],
+  faqIntro:"A quick note on what the bot does and doesn't do.",
+  faq:[["What does this bot do?","It analyzes the risk of your open position — margin, leverage, stop, take-profit and distance to liquidation — and gives a sober read on how close you are to a loss. It does not predict price."],
+       ["How is risk calculated?","By share of deposit at risk: how much you actually lose if the position is wiped. It factors in leverage, whether a stop is set and how far, size vs balance, and the buffer to liquidation."],
+       ["Are these signals or buy advice?","No. The bot doesn't tell you what to buy or sell and gives no investment or financial advice."],
+       ["Who's responsible for my trades?","Only you. It's a helper tool for your own decision, not a recommendation."]],
+  disclaimer:"NoRekt is not a financial, investment or trading advisor. All estimates are for reference only and may be inaccurate. You make trading decisions yourself and bear full responsibility for your actions and any losses. Leveraged trading carries a high risk of losing funds."}
+};
+let lang="ru",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",side="long",tvWidget=null,balance=48,REVIEW_COST=80,usdtCost=1,pendingPay=null,backScreen="input";
+const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+const TG_USER = (TG && TG.initDataUnsafe && TG.initDataUnsafe.user) ? TG.initDataUnsafe.user : null;
+const TG_ID = TG_USER ? TG_USER.id : null;   // привязка всего к одному пользователю по Telegram ID (есть только внутри бота)
+
+function applyLang(){
+  const t=I18N[lang];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.getAttribute("data-i18n");if(typeof t[k]==="string")el.textContent=t[k];});
+  document.querySelectorAll("#langSeg,#langSeg2").forEach(s=>{s.classList.toggle("en",lang==="en");s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",(i===0)===(lang==="ru")));});
+  document.getElementById("themeVal").textContent = t["theme"+theme.charAt(0).toUpperCase()+theme.slice(1)];
+  document.documentElement.lang=lang;
+  updateModeUI(); buildFaq(); setHeader();
+}
+function setLang(l){lang=l;applyLang();}
+
+function setTheme(tn){
+  theme=tn;document.documentElement.setAttribute("data-theme",tn);
+  document.querySelectorAll(".opt").forEach(o=>o.classList.toggle("sel",o.dataset.t===tn));
+  applyLang();loadTV();closeSheet();
+}
+function openSheet(){document.querySelectorAll(".opt").forEach(o=>o.classList.toggle("sel",o.dataset.t===theme));document.getElementById("overlay").classList.add("on");}
+function closeSheet(){document.getElementById("overlay").classList.remove("on");}
+
+const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle"};
+function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];document.getElementById("hdrSub").style.display=current==="input"?"block":"none";}
+function show(id){current=id;document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("s-"+id).classList.add("active");document.querySelector(".body").scrollTop=0;setHeader();if(id==="input")requestAnimationFrame(loadTV);if(id==="deposit"){const d=document.getElementById("depBalVal");if(d)d.textContent=usdtBalance.toFixed(2);document.getElementById("depStep1").style.display="block";document.getElementById("depStep2").style.display="none";document.getElementById("depReq").style.display="none";}}
+function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);}
+
+function toggleTog(which,e){
+  const el=document.getElementById(which==="stop"?"stopTog":"tpTog");
+  if(which==="stop")stopOn=!stopOn; else tpOn=!tpOn;
+  el.classList.toggle("on",which==="stop"?stopOn:tpOn);
+  const c=document.getElementById("tpsl");if(c&&c.classList.contains("open")){const b=document.getElementById("tpslBody");b.style.maxHeight=b.scrollHeight+"px";}
+}
+function toggleTpsl(){const c=document.getElementById("tpsl"),b=document.getElementById("tpslBody");c.classList.toggle("open");b.style.maxHeight=c.classList.contains("open")?b.scrollHeight+"px":0;}
+function setMode(m){mode=m;const idx={view:0,in:1}[m];document.getElementById("modeThumb").style.transform="translateX("+(idx*100)+"%)";document.querySelectorAll("#modeSeg button").forEach((b,i)=>b.classList.toggle("on",i===idx));const trade=m!=="view";document.getElementById("inFields").style.display=trade?"block":"none";document.getElementById("tradeFields").style.display=trade?"block":"none";updateModeUI();if(current==="input")requestAnimationFrame(loadTV);}
+function setSide(sd){side=sd;const s=document.getElementById("sideSeg");s.classList.toggle("en",sd==="short");s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",(i===0)===(sd==="long")));}
+
+let usdtBalance=0;
+function renderBalance(){const bp=document.getElementById("balProfile");if(bp)bp.textContent=balance;document.getElementById("balUsdt").textContent=usdtBalance.toFixed(2);const m=document.getElementById("payUsdtMeta");if(m)m.textContent=usdtCost+" $ · "+(lang==="ru"?"баланс ":"balance ")+usdtBalance.toFixed(2);}
+
+// Step 1: choose payment method. payload: {kind:"review"|"overview", cs:starsCost, cu:usdtCost, data?}
+function openPay(payload){
+  pendingPay=payload;const t=I18N[lang];
+  document.getElementById("payOverlay").querySelector("h4").textContent = payload.kind==="overview"?t.payTitleOv:t.payTitle;
+  document.querySelector("#payOverlay .pay-sub").textContent = payload.kind==="overview"?t.paySubOv:t.paySubChoose;
+  document.querySelector("#payOverlay .pay-opt .po-meta").textContent = payload.cs+" ★";
+  document.getElementById("payUsdtMeta").textContent = payload.cu+" $ · "+(lang==="ru"?"баланс ":"balance ")+usdtBalance.toFixed(2);
+  document.getElementById("payOverlay").classList.add("on");
+}
+function closePay(){document.getElementById("payOverlay").classList.remove("on");}
+
+// Step 2: route by method
+function payWith(method){
+  closePay();const p=pendingPay;
+  backScreen = (p&&p.kind==="overview")?"overview":"input";
+  if(method==="stars"){ setStarsScreen(p.cs); show("stars"); return; }
+  if(usdtBalance>=p.cu){ usdtBalance-=p.cu; renderBalance(); completePay(); }
+  else { show("deposit"); }
+}
+
+function setStarsScreen(cost){
+  document.getElementById("starsAmt").innerHTML='<span style="font-size:24px">★</span>'+cost;
+  document.getElementById("starsBtn").textContent=I18N[lang].starsPay.replace("80",cost);
+}
+
+// Stars payment via Telegram WebApp (real inside the bot; simulated in browser preview)
+function payStars(e){
+  ripple(e);const t=I18N[lang],note=document.getElementById("starsNote");
+  if(TG && typeof TG.openInvoice==="function"){
+    note.textContent=t.starsBot;
+    // In production your bot/server creates the invoice link (currency XTR, amount = pendingPay.cs) tied to TG_ID,
+    // then the WebApp opens it. The link must come from your backend.
+    try{
+      // TG.openInvoice(invoiceLinkFromYourServer, (status)=>{ if(status==="paid") completePay(); });
+      note.textContent=t.starsPreview;
+      setTimeout(completePay,900);
+    }catch(err){ note.textContent=t.starsPreview; setTimeout(completePay,900); }
+  } else {
+    note.textContent=t.starsPreview;
+    setTimeout(completePay,900);
+  }
+}
+
+// after payment: branch by what was bought
+function completePay(){
+  const p=pendingPay;pendingPay=null;
+  if(p&&p.kind==="overview"){ revealOverview(); return; }
+  show("loading"); if(p&&p.data) setTimeout(()=>renderVerdict(p.data),1200);
+}
+function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); show("overview"); }
+function unlockOverview(){ openPay({kind:"overview",cs:30,cu:0.5}); }
+function backFromPay(){ if(backScreen==="overview"){navTo("input");show("overview");} else if(backScreen==="input"){navTo("input");} else {navTo("settings");} backScreen="input"; }
+function topupStars(){ backScreen="profile"; show("stars"); }
+function updateModeUI(){const t=I18N[lang];const l=document.getElementById("leadText");if(l)l.textContent=mode==="view"?t.leadView:mode==="in"?t.leadIn:t.leadPlan;const b=document.getElementById("checkBtn");if(b)b.textContent=mode==="view"?t.btnView:mode==="in"?t.btnCheckIn:t.btnCheck;}
+
+function ripple(e){const b=e.currentTarget,r=document.createElement("span");const d=Math.max(b.offsetWidth,b.offsetHeight);r.className="ripple";r.style.width=r.style.height=d+"px";const rc=b.getBoundingClientRect();r.style.left=(e.clientX-rc.left-d/2)+"px";r.style.top=(e.clientY-rc.top-d/2)+"px";b.appendChild(r);setTimeout(()=>r.remove(),550);}
+
+function buildFaq(){
+  const t=I18N[lang];
+  document.getElementById("faqList").innerHTML=t.faq.map((f,i)=>
+    '<div class="faq-item" onclick="this.classList.toggle(\'open\');var a=this.querySelector(\'.faq-a\');a.style.maxHeight=this.classList.contains(\'open\')?a.scrollHeight+\'px\':0">'+
+    '<div class="faq-q">'+f[0]+'<svg class="qchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>'+
+    '<div class="faq-a"><p>'+f[1]+'</p></div></div>').join("");
+  document.getElementById("disclaimerText").textContent=t.disclaimer;
+}
+
+/* ---------- risk engine: % of deposit actually at risk ---------- */
+function runCheck(e){
+  ripple(e);
+  const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
+  if(mode==="view"){show("loading");setTimeout(()=>renderOverview(coin),1100);return;}
+  const lev=Math.max(1,+document.getElementById("fLev").value||1);
+  const margin=Math.max(0,+document.getElementById("fSize").value||0);
+  const bal=Math.max(1,+document.getElementById("fBal").value||1);
+  const stopPct=stopOn?Math.max(0.01,+document.getElementById("fStop").value||0):0;
+  const tpPct=tpOn?Math.max(0.01,+document.getElementById("fTp").value||0):0;
+  const entry = mode==="in" ? Math.max(0,+document.getElementById("fEntry").value||0) : 0;
+
+  const bankPct=Math.min(100,margin/bal*100);          // margin committed vs account
+  const liqMove=+(100/lev).toFixed(1);                  // % adverse move to liquidation (isolated approx)
+  // account loss if it goes wrong:
+  let riskPct;
+  if(stopOn){ riskPct=Math.min(bankPct, bankPct*lev*stopPct/100); }   // stop caps the loss
+  else { riskPct=bankPct; }                                           // no stop -> ride to liquidation, lose margin
+  // fragility: thin liquidation buffer + no stop = noise can wipe you
+  let frag=0; if(!stopOn && liqMove<6) frag=(1-liqMove/6)*12;
+  const score=Math.min(99, Math.round(riskPct + frag));
+  const rr = (stopOn && tpOn && stopPct>0) ? +(tpPct/stopPct).toFixed(1) : null;
+  let liqPrice=null;
+  if(entry>0){ liqPrice = side==="long" ? entry*(1-liqMove/100) : entry*(1+liqMove/100); }
+
+  show("loading");
+  openPay({kind:"review",cs:REVIEW_COST,cu:usdtCost,data:{coin,lev,bankPct,liqMove,riskPct,score,rr,liqPrice}});
+}
+function animateCount(el,to,dec,suf,pre){let s=null;function step(ts){if(!s)s=ts;const p=Math.min(1,(ts-s)/850), e=1-Math.pow(1-p,3),v=to*e;el.textContent=(pre||"")+(dec?v.toFixed(dec):Math.round(v))+(suf||"");if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+function renderVerdict(d){
+  const t=I18N[lang];let level,color;
+  if(d.score>=45){level="High";color="var(--red)";}else if(d.score>=15){level="Mid";color="var(--amber)";}else{level="Low";color="var(--green)";}
+  show("verdict");
+  const ang=-90+(d.score/100)*180,nd=document.getElementById("needle");
+  nd.style.transform="rotate(-90deg)";requestAnimationFrame(()=>setTimeout(()=>nd.style.transform="rotate("+ang+"deg)",60));
+  const gv=document.getElementById("gVal");gv.style.color=color;animateCount(gv,d.score,0,"");
+  const gl=document.getElementById("gLvl");gl.style.color=color;gl.textContent=level==="High"?t.lvlHigh:level==="Mid"?t.lvlMid:t.lvlLow;
+  const rd=d.riskPct<10?1:0; animateCount(document.getElementById("mRisk"),d.riskPct,rd,"%");
+  document.getElementById("mLiq").textContent="−"+d.liqMove+"%";
+  document.getElementById("mLev").textContent=d.lev+"x";
+  document.getElementById("mRr").textContent= d.rr? "1:"+d.rr : "—";
+  document.getElementById("verdictBox").style.borderLeftColor=color;
+  const tmpl=level==="High"?t.vHigh:level==="Mid"?t.vMid:t.vLow;
+  const riskStr=d.riskPct<10?d.riskPct.toFixed(1):Math.round(d.riskPct);
+  const stopStr=stopOn?"":t.noStop;
+  const rrStr=(level==="Low"&&d.rr)?t.rrLow.replace("{rr}",d.rr):"";
+  let vt=tmpl.replace(/\{risk\}/g,riskStr).replace("{lev}",d.lev).replace("{coin}",d.coin).replace("{liq}",d.liqMove).replace("{stop}",stopStr).replace("{rr}",rrStr);
+  if(d.liqPrice){const p=d.liqPrice>=1?d.liqPrice.toLocaleString("en-US",{maximumFractionDigits:2}):d.liqPrice.toPrecision(4);vt+=t.liqAt.replace("{p}",p);}
+  document.getElementById("verdictText").textContent=vt;
+  const todos=level==="High"?t.tHigh:level==="Mid"?t.tMid:t.tLow;
+  document.getElementById("todoList").innerHTML=todos.map(x=>"<li>"+x+"</li>").join("");
+}
+function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");show("overview");}
+
+/* ---------- chart: TradingView advanced widget (pan/zoom, timeframes, all coins) ---------- */
+function loadTV(){
+  const host=document.getElementById("tvChart"),msg=document.getElementById("tvMsg");
+  if(!host)return;
+  const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
+  const sym="BINANCE:"+coin+"USDT";
+  if(typeof TradingView==="undefined"){msg.style.display="flex";msg.textContent=I18N[lang].tvMsg;return;}
+  msg.style.display="none";host.innerHTML="";
+  try{
+    tvWidget=new TradingView.widget({
+      container_id:"tvChart",autosize:true,symbol:sym,interval:"15",timezone:"Etc/UTC",
+      theme: theme==="light"?"light":"dark", style:"1", locale: lang==="ru"?"ru":"en",
+      hide_side_toolbar:true, allow_symbol_change:false, hide_legend:false, save_image:false,
+      backgroundColor: theme==="light"?"#FFFFFF":(theme==="black"?"#0B0B0C":"#17212B")
+    });
+  }catch(e){msg.style.display="flex";msg.textContent=I18N[lang].tvMsg;}
+}
+let dbT=null;
+document.getElementById("fCoin").addEventListener("input",()=>{clearTimeout(dbT);dbT=setTimeout(loadTV,650);});
+
+/* ---------- profile: editable avatar + name ---------- */
+function changeAvatar(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const a=document.getElementById("avatarEl");a.textContent="";a.style.backgroundImage="url("+ev.target.result+")";};r.readAsDataURL(f);}
+function editName(){const el=document.getElementById("pnameEl");const v=prompt(I18N[lang].namePrompt,el.textContent.trim());if(v&&v.trim()){el.textContent=v.trim();const a=document.getElementById("avatarEl");if(!a.style.backgroundImage)a.textContent=v.trim().charAt(0).toUpperCase();}}
+
+/* ---------- coin selector: live market data (CoinGecko) ---------- */
+let coinData=[],coinTab="cap",coinLoaded=false;
+function openCoins(){document.getElementById("coinOverlay").classList.add("on");if(!coinLoaded)loadCoins();else renderCoins();}
+function closeCoins(){document.getElementById("coinOverlay").classList.remove("on");}
+function setCoinTab(s){coinTab=s;document.querySelectorAll(".cs-tab").forEach(b=>b.classList.toggle("on",b.dataset.sort===s));renderCoins();}
+async function loadCoins(){
+  const list=document.getElementById("coinList");list.innerHTML='<div class="cs-spin"></div>';
+  try{
+    const r=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&price_change_percentage=24h");
+    if(!r.ok)throw 0;const d=await r.json();
+    coinData=d.map((c,i)=>({rank:i+1,sym:(c.symbol||"").toUpperCase(),price:c.current_price,chg:c.price_change_percentage_24h||0,vol:c.total_volume||0}));
+    coinLoaded=true;renderCoins();
+  }catch(e){list.innerHTML='<div class="cs-msg">'+I18N[lang].csErr+'</div>';}
+}
+function fmtP(n){if(n>=1000)return n.toLocaleString("en-US",{maximumFractionDigits:0});if(n>=1)return n.toFixed(2);return n?n.toPrecision(4):"—";}
+function renderCoins(){
+  if(!coinData.length)return;
+  let arr=coinData.slice();
+  if(coinTab==="gain")arr.sort((a,b)=>b.chg-a.chg);
+  else if(coinTab==="lose")arr.sort((a,b)=>a.chg-b.chg);
+  else if(coinTab==="vol")arr.sort((a,b)=>b.vol-a.vol);
+  else arr.sort((a,b)=>a.rank-b.rank);
+  document.getElementById("coinList").innerHTML=arr.map(c=>{
+    const col=c.chg>=0?"var(--green)":"var(--red)";
+    return '<div class="cs-item" onclick="pickCoin(\''+c.sym+'\')"><span class="cs-rank">'+c.rank+'</span><span class="cs-sym">'+c.sym+'</span><span class="cs-price">$'+fmtP(c.price)+'</span><span class="cs-chg" style="color:'+col+'">'+(c.chg>=0?"+":"")+c.chg.toFixed(1)+'%</span></div>';
+  }).join("");
+}
+function pickCoin(sym){document.getElementById("fCoin").value=sym;closeCoins();loadTV();}
+
+setSide("long");setMode("view");setTheme("dark");renderBalance();
+
+/* deposit: demo addresses per network (prototype only, not real wallets) */
+// EVM address (BSC / Arbitrum / etc.) and TRON address provided by user
+const ADDR_EVM="0xd6207b9eeaa559699dcf62272ed416881bba8a27";
+const ADDR_TRON="TZELSNUrT1vkQJcWYW8vKj8r53HrQ4cFaZ";
+// coin -> available networks; addr=null means address not configured yet (do NOT invent one)
+const PAY_COINS={
+  BTC:{decimals:8,nets:[["Bitcoin",null]]},
+  USDT:{decimals:6,nets:[["TRC20",ADDR_TRON],["BSC (BEP20)",ADDR_EVM],["Arbitrum",ADDR_EVM]]},
+  USDC:{decimals:6,nets:[["BSC (BEP20)",ADDR_EVM],["Arbitrum",ADDR_EVM]]},
+  ETH:{decimals:6,nets:[["Arbitrum",ADDR_EVM],["BSC (BEP20)",ADDR_EVM]]}
+};
+let payCoin="USDT",netIdx=0;
+
+function pickPayCoin(c){
+  payCoin=c;netIdx=0;
+  document.getElementById("depStep1").style.display="none";
+  document.getElementById("depStep2").style.display="block";
+  document.getElementById("depReq").style.display="none";
+  document.getElementById("depAmount").value="";
+  buildNetSeg();
+  document.querySelector(".body").scrollTop=0;
+}
+function depBack(){document.getElementById("depStep2").style.display="none";document.getElementById("depStep1").style.display="block";}
+function buildNetSeg(){
+  const nets=PAY_COINS[payCoin].nets,seg=document.getElementById("netSeg");
+  seg.innerHTML='<div class="thumb" id="netThumb"></div>'+nets.map((n,i)=>'<button class="'+(i===0?"on":"")+'" style="flex:1" onclick="setNet('+i+')">'+n[0]+'</button>').join("");
+  const w=100/nets.length;document.getElementById("netThumb").style.width="calc("+w+"% - 3px)";
+  setNet(0);
+}
+function setNet(i){netIdx=i;const nets=PAY_COINS[payCoin].nets;document.querySelectorAll("#netSeg button").forEach((b,j)=>b.classList.toggle("on",j===i));document.getElementById("netThumb").style.transform="translateX("+(i*100)+"%)";if(document.getElementById("depReq").style.display!=="none")fillAddr();}
+function fillAddr(){const addr=PAY_COINS[payCoin].nets[netIdx][1];document.getElementById("depAddrVal").textContent=addr||I18N[lang].depNoAddr;}
+
+// unique-amount tag (step 0.001, added on top): bot/server assigns it so two users never collide.
+// In production the tag is generated server-side, keyed to your Telegram ID; if a tag is taken, the next free one is used.
+function genRequisites(e){
+  ripple(e);
+  const amt=parseFloat(document.getElementById("depAmount").value);
+  if(!amt||amt<=0){alert(I18N[lang].depEnterAmount);return;}
+  const tag=Math.floor(Math.random()*999)+1;     // 1..999  -> 0.001 .. 0.999
+  const final=amt + tag/1000;                     // added on top, step 0.001
+  document.getElementById("depReqAmount").textContent=final.toFixed(3)+" "+payCoin;
+  fillAddr();
+  document.getElementById("depReq").style.display="block";
+}
+function copyVal(btn,val){const done=()=>{const o=btn.textContent;btn.textContent=I18N[lang].depCopied;setTimeout(()=>btn.textContent=I18N[lang].depCopy,1400);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(val).then(done).catch(done);}else done();}
+// "I've paid": in production the server confirms the on-chain payment by the tagged amount and credits the balance.
+// Here we just acknowledge and reset the flow to the start so another top-up can be made.
+function depDone(e){
+  ripple(e);
+  alert(I18N[lang].depWaiting);
+  document.getElementById("depAmount").value="";
+  document.getElementById("depReq").style.display="none";
+  document.getElementById("depStep2").style.display="none";
+  document.getElementById("depStep1").style.display="block";
+  document.querySelector(".body").scrollTop=0;
+}
+</script>
+</body>
+</html>

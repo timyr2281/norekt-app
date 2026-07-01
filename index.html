@@ -261,7 +261,6 @@
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>
     <div style="flex:1">
       <h1 id="hdrTitle">NoRekt</h1>
-      <div class="sub" id="hdrSub" data-i18n="hdrSub">трезвый разбор позиции</div>
     </div>
     <div class="lang-seg" id="langSeg">
       <div class="thumb"></div>
@@ -437,15 +436,6 @@
         </div>
       </div>
 
-      <p class="sec-title" data-i18n="setPay">Оплата</p>
-      <div class="set-group">
-        <div class="set-row" style="cursor:default">
-          <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>
-          <span class="txt" data-i18n="setPrice">Цена за разбор</span>
-          <span class="val" style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;">80&#8202;★</span><span style="color:var(--hint)">|</span><span>1&#8202;$</span></span>
-        </div>
-      </div>
-
       <p class="sec-title" data-i18n="setHelp">Справка</p>
       <div class="set-group">
         <div class="set-row" onclick="navTo('faq')">
@@ -591,9 +581,9 @@
 
 <script>
 const I18N={
- ru:{hdrSub:"трезвый разбор позиции",leadPlan:"Оцени риск сделки до входа — сколько депозита ты реально поставишь.",leadIn:"Разбор твоей открытой позиции — насколько ты близко к потере.",
+ ru:{hdrSub:"",leadPlan:"Оцени риск сделки до входа — сколько депозита ты реально поставишь.",leadIn:"Разбор твоей открытой позиции — насколько ты сделал правильный выбор.",
   modePlan:"Сделка",modeIn:"В сделке",modeView:"Обзор",lblSide:"Направление",sideLong:"Лонг",sideShort:"Шорт",lblEntry:"Точка входа $",btnCheckIn:"Разобрать позицию",
-  leadView:"Посмотри монету — ИИ даст обзор тренда, волатильности и ключевых уровней.",btnView:"Получить анализ ИИ",
+  leadView:"Выбери монету — получи обзор тренда, волатильность и ключевые уровни.",btnView:"Получить анализ ИИ",
   ovTrend:"Тренд",ovVol:"Волатильность",ovLevels:"Ключевые уровни",ovSum:"Резюме",
   ovDemoTrend:"[ИИ опишет текущий тренд и его силу]",ovDemoVol:"[ИИ оценит волатильность и риск резких движений]",ovDemoLevels:"[ИИ выделит ближайшие поддержки и сопротивления]",ovDemoSum:"[ИИ даст краткое резюме и на что обратить внимание]",
   ovIntro:"Демонстрационный обзор {coin}. В рабочей версии ИИ разбирает монету по реальным рыночным данным.",ovNote:"Демо-обзор. Не является сигналом или советом покупать/продавать.",
@@ -630,13 +620,14 @@ const I18N={
   tLow:["Держи дисциплину — это рабочая конфигурация.","Не наращивай риск на эмоциях.","Фиксируй, что сработало, для следующих сделок."],
   faqIntro:"Коротко о том, что делает бот и чего он не делает.",
   faq:[["Что делает этот бот?","Анализирует риск твоей открытой позиции — маржу, плечо, стоп, тейк и расстояние до ликвидации — и даёт трезвую оценку, насколько ты близко к потере. Он не предсказывает цену."],
+       ["Откуда бот берёт анализ?","Информацию даёт ИИ, обученный на опыте множества топ-трейдеров — он знает рынок до мелочей и разбирает позицию так, как это сделал бы опытный трейдер."],
        ["Как считается риск?","По доле депозита под риском: сколько ты реально теряешь, если позицию вынесет. Учитывается плечо, наличие и расстояние стопа, объём к балансу и буфер до ликвидации."],
        ["Это сигналы или советы покупать?","Нет. Бот не говорит, что покупать или продавать, и не даёт инвестиционных или финансовых советов."],
        ["Кто отвечает за мои сделки?","Только ты. Это вспомогательный инструмент для твоего собственного решения, а не рекомендация."]],
   disclaimer:"NoRekt не является финансовым, инвестиционным или торговым советником. Все оценки носят справочный характер и могут быть неточными. Решения о сделках ты принимаешь самостоятельно и несёшь полную ответственность за свои действия и возможные потери. Торговля с плечом сопряжена с высоким риском потери средств."},
- en:{hdrSub:"a sober read on your position",leadPlan:"Size up a trade before you enter — how much of your deposit you'd really put on the line.",leadIn:"A read on your open position — how close you are to a loss.",
+ en:{hdrSub:"",leadPlan:"Size up a trade before you enter — how much of your deposit you'd really put on the line.",leadIn:"A read on your open position — how good your choice really was.",
   modePlan:"Trade",modeIn:"In trade",modeView:"View",lblSide:"Direction",sideLong:"Long",sideShort:"Short",lblEntry:"Entry point $",btnCheckIn:"Analyze position",
-  leadView:"Look up a coin — the AI gives an overview of trend, volatility and key levels.",btnView:"Get AI analysis",
+  leadView:"Pick a coin — get an overview of trend, volatility and key levels.",btnView:"Get AI analysis",
   ovTrend:"Trend",ovVol:"Volatility",ovLevels:"Key levels",ovSum:"Summary",
   ovDemoTrend:"[AI will describe the current trend and its strength]",ovDemoVol:"[AI will assess volatility and the risk of sharp moves]",ovDemoLevels:"[AI will flag nearby support and resistance]",ovDemoSum:"[AI will give a short summary and what to watch]",
   ovIntro:"Demo overview of {coin}. In the live version the AI analyzes the coin on real market data.",ovNote:"Demo overview. Not a signal or advice to buy/sell.",
@@ -673,12 +664,13 @@ const I18N={
   tLow:["Keep the discipline — this is a working setup.","Don't add risk on emotion.","Note what worked for next trades."],
   faqIntro:"A quick note on what the bot does and doesn't do.",
   faq:[["What does this bot do?","It analyzes the risk of your open position — margin, leverage, stop, take-profit and distance to liquidation — and gives a sober read on how close you are to a loss. It does not predict price."],
+       ["Where does the analysis come from?","The insight comes from an AI trained on the experience of many top traders — it knows the market down to the details and reviews a position the way a seasoned trader would."],
        ["How is risk calculated?","By share of deposit at risk: how much you actually lose if the position is wiped. It factors in leverage, whether a stop is set and how far, size vs balance, and the buffer to liquidation."],
        ["Are these signals or buy advice?","No. The bot doesn't tell you what to buy or sell and gives no investment or financial advice."],
        ["Who's responsible for my trades?","Only you. It's a helper tool for your own decision, not a recommendation."]],
   disclaimer:"NoRekt is not a financial, investment or trading advisor. All estimates are for reference only and may be inaccurate. You make trading decisions yourself and bear full responsibility for your actions and any losses. Leveraged trading carries a high risk of losing funds."}
 };
-let lang="ru",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",side="long",tvWidget=null,balance=48,REVIEW_COST=80,usdtCost=1,pendingPay=null,backScreen="input";
+let lang="en",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",side="long",tvWidget=null,balance=48,REVIEW_COST=80,usdtCost=1,pendingPay=null,backScreen="input";
 const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 const TG_USER = (TG && TG.initDataUnsafe && TG.initDataUnsafe.user) ? TG.initDataUnsafe.user : null;
 const TG_ID = TG_USER ? TG_USER.id : null;   // привязка всего к одному пользователю по Telegram ID (есть только внутри бота)
@@ -702,7 +694,7 @@ function openSheet(){document.querySelectorAll(".opt").forEach(o=>o.classList.to
 function closeSheet(){document.getElementById("overlay").classList.remove("on");}
 
 const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle"};
-function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];document.getElementById("hdrSub").style.display=current==="input"?"block":"none";}
+function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];}
 function show(id){current=id;document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("s-"+id).classList.add("active");document.querySelector(".body").scrollTop=0;setHeader();if(id==="input")requestAnimationFrame(loadTV);if(id==="deposit"){const d=document.getElementById("depBalVal");if(d)d.textContent=usdtBalance.toFixed(2);document.getElementById("depStep1").style.display="block";document.getElementById("depStep2").style.display="none";document.getElementById("depReq").style.display="none";}}
 function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);}
 

@@ -510,14 +510,27 @@
       </div>
       <div id="adminBody" style="display:none">
         <div class="metrics" id="adminTotals"></div>
-        <p class="sec-title">Топ по покупкам</p>
-        <div class="hist" id="adminBuyers"></div>
-        <p class="sec-title" style="margin-top:16px">Топ по рефералам</p>
-        <div class="hist" id="adminRef"></div>
-        <p class="sec-title" style="margin-top:16px">Последние пользователи</p>
-        <div class="hist" id="adminUsers"></div>
+        <button class="btn" style="margin-top:6px" onclick="openBroadcast()">📣 Рассылка всем</button>
         <button class="btn-ghost" onclick="navTo('settings')" data-i18n="btnBack">← Назад</button>
       </div>
+    </section>
+
+    <!-- ADMIN: rating list with search -->
+    <section class="screen" id="s-adminlist">
+      <p class="sec-title" id="adminListTitle">Список</p>
+      <input id="adminSearch" class="mb" placeholder="Поиск по имени или Telegram ID" autocomplete="off" oninput="renderAdminList()">
+      <div class="hist" id="adminListBox"></div>
+      <button class="btn-ghost" onclick="navTo('admin');openAdmin2()" data-i18n="btnBack">← Назад</button>
+    </section>
+
+    <!-- ADMIN: broadcast -->
+    <section class="screen" id="s-broadcast">
+      <p class="sec-title">Рассылка всем пользователям</p>
+      <p class="lead" style="font-size:12px">Сообщение придёт каждому не заблокированному пользователю. Отправляй по делу — спам грозит баном бота.</p>
+      <textarea id="bcText" style="width:100%;min-height:120px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;color:var(--txt);font-size:14px;padding:12px;font-family:var(--sans);outline:none;" placeholder="Текст рассылки..."></textarea>
+      <button class="btn" style="margin-top:12px" onclick="sendBroadcast(event)">Отправить всем</button>
+      <p id="bcResult" style="font-size:12px;color:var(--muted);margin:10px 0 0;"></p>
+      <button class="btn-ghost" onclick="navTo('admin');openAdmin2()" data-i18n="btnBack">← Назад</button>
     </section>
 
     <!-- FAQ -->
@@ -808,10 +821,10 @@ function setTheme(tn){
 function openSheet(){document.querySelectorAll(".opt").forEach(o=>o.classList.toggle("sel",o.dataset.t===theme));document.getElementById("overlay").classList.add("on");}
 function closeSheet(){document.getElementById("overlay").classList.remove("on");}
 
-const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle",admin:"navSettings"};
+const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle",admin:"navSettings",adminlist:"navSettings",broadcast:"navSettings"};
 function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];}
 function show(id){current=id;document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("s-"+id).classList.add("active");document.querySelector(".body").scrollTop=0;setHeader();if(id==="input")requestAnimationFrame(loadTV);if(id==="deposit"){const d=document.getElementById("depBalVal");if(d)d.textContent=usdtBalance.toFixed(2);document.getElementById("depStep1").style.display="block";document.getElementById("depStep2").style.display="none";document.getElementById("depReq").style.display="none";}}
-function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input",admin:"settings"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);if(id==="profile"){loadMe();loadHistory();}}
+function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input",admin:"settings",adminlist:"settings",broadcast:"settings"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);if(id==="profile"){loadMe();loadHistory();}}
 
 function toggleTog(which,e){
   const el=document.getElementById(which==="stop"?"stopTog":"tpTog");
@@ -1040,7 +1053,7 @@ function renderCoins(){
 function pickCoin(sym){document.getElementById("fCoin").value=sym;closeCoins();loadTV();}
 
 // ── admin panel (only visible/usable for the admin Telegram ID) ──
-let adminPassword=null;
+let adminPassword=null, adminAllUsers=[], adminSort="purchases", adminStatsData=null;
 async function checkAdmin(){
   if(!HAS_SERVER) return;
   try{ const r=await apiCall("/admin/is",{}); if(r.admin){ const g=document.getElementById("adminSetGroup"); if(g) g.style.display="block"; } }catch(e){}
@@ -1052,34 +1065,85 @@ function openAdmin(){
   document.getElementById("adminPass").value="";
   navTo("admin");
 }
+function openAdmin2(){ // return to admin dashboard without re-login
+  document.getElementById("adminGate").style.display="none";
+  document.getElementById("adminBody").style.display="block";
+  if(adminStatsData) renderAdmin(adminStatsData);
+}
 async function adminLogin(e){
   ripple(e);
   const pass=document.getElementById("adminPass").value;
   try{
     const r=await apiCall("/admin/stats",{password:pass});
-    adminPassword=pass;
+    adminPassword=pass; adminStatsData=r;
     document.getElementById("adminGate").style.display="none";
     document.getElementById("adminBody").style.display="block";
     renderAdmin(r);
+    // preload full user list for the rating screens
+    try{ const u=await apiCall("/admin/users",{password:pass}); adminAllUsers=u.users||[]; }catch(e){}
   }catch(err){ document.getElementById("adminErr").style.display="block"; }
 }
-function nm(u){ return (u.name||("id"+u.telegram_id)) + (u.username?(" @"+u.username):""); }
+function metric(k,v,sort){ return '<div class="metric" style="cursor:pointer" onclick="openAdminList(\''+(sort||'')+'\',\''+k+'\')"><p class="k">'+k+'</p><p class="v">'+(v??0)+'</p></div>'; }
 function renderAdmin(d){
   const t=d.totals||{};
   document.getElementById("adminTotals").innerHTML =
-    metric("Пользователей", t.users) + metric("Покупателей", t.buyers) +
-    metric("Покупок", t.purchases) + metric("Рефералов", t.referrals) +
-    metric("USD оборот", Number(t.usd_spent||0).toFixed(2)) + metric("Разборов", t.analyses);
-  document.getElementById("adminBuyers").innerHTML = (d.topBuyers||[]).map(u=>
-    row(nm(u), u.purchases+" · $"+Number(u.usd||0).toFixed(2))).join("") || empty();
-  document.getElementById("adminRef").innerHTML = (d.topReferrers||[]).map(u=>
-    row(nm(u), u.invited+" / "+u.invited_paid+" куп.")).join("") || empty();
-  document.getElementById("adminUsers").innerHTML = (d.recentUsers||[]).map(u=>
-    row(nm(u), (u.has_paid?"✓ ":"")+ "ov"+u.free_overviews+" rv"+u.free_reviews)).join("") || empty();
+    metric("Пользователей", t.users, "created") + metric("Покупателей", t.buyers, "purchases") +
+    metric("Покупок", t.purchases, "purchases") + metric("Рефералов", t.referrals, "invited") +
+    metric("USD оборот", Number(t.usd_spent||0).toFixed(2), "usd") + metric("Разборов", t.analyses, "analyses");
 }
-function metric(k,v){ return '<div class="metric"><p class="k">'+k+'</p><p class="v">'+(v??0)+'</p></div>'; }
-function row(a,b){ return '<div class="hist-item"><span class="coin" style="flex:1">'+a+'</span><span class="meta">'+b+'</span></div>'; }
-function empty(){ return '<div class="cs-msg">—</div>'; }
+const SORT_LABEL={purchases:"покупкам",usd:"обороту",invited:"рефералам",analyses:"разборам",created:"дате"};
+function openAdminList(sort, title){
+  adminSort = sort || "purchases";
+  document.getElementById("adminListTitle").textContent = "Рейтинг по "+(SORT_LABEL[adminSort]||"покупкам");
+  document.getElementById("adminSearch").value="";
+  navTo("adminlist");
+  renderAdminList();
+}
+function nm(u){ return (u.name||("id"+u.telegram_id)) + (u.username?(" @"+u.username):""); }
+function renderAdminList(){
+  const q=(document.getElementById("adminSearch").value||"").toLowerCase().trim();
+  let arr=adminAllUsers.slice();
+  if(q) arr=arr.filter(u=> String(u.telegram_id).includes(q) || (u.name||"").toLowerCase().includes(q) || (u.username||"").toLowerCase().includes(q));
+  const key=adminSort;
+  arr.sort((a,b)=>{
+    if(key==="created") return new Date(b.created_at)-new Date(a.created_at);
+    if(key==="usd") return Number(b.usd)-Number(a.usd);
+    return (b[key]||0)-(a[key]||0);
+  });
+  const box=document.getElementById("adminListBox");
+  if(!arr.length){ box.innerHTML='<div class="cs-msg">Ничего не найдено</div>'; return; }
+  box.innerHTML=arr.slice(0,200).map(u=>{
+    let val;
+    if(key==="usd") val="$"+Number(u.usd||0).toFixed(2);
+    else if(key==="invited") val=u.invited+" / "+u.invited_paid+" куп.";
+    else if(key==="analyses") val=u.analyses+" разб.";
+    else if(key==="created") val=new Date(u.created_at).toLocaleDateString();
+    else val=u.purchases+" · $"+Number(u.usd||0).toFixed(2);
+    const blk=u.blocked?'<span style="color:var(--red)">разбл.</span>':'блок';
+    return '<div class="hist-item"><span class="coin" style="flex:1;font-family:var(--sans);font-size:13px">'+nm(u)+
+      '<br><span style="font-size:10px;color:var(--hint)">ID '+u.telegram_id+(u.blocked?' · 🚫':'')+'</span></span>'+
+      '<span class="meta" style="text-align:right">'+val+'<br><button onclick="toggleBlock('+u.telegram_id+','+(u.blocked?'false':'true')+')" style="margin-top:4px;border:none;background:var(--surface);color:var(--tg);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;">'+blk+'</button></span></div>';
+  }).join("");
+}
+async function toggleBlock(id, blocked){
+  try{
+    await apiCall("/admin/block",{password:adminPassword,target:id,blocked:blocked});
+    const u=adminAllUsers.find(x=>Number(x.telegram_id)===Number(id)); if(u) u.blocked=blocked;
+    renderAdminList();
+  }catch(e){ alert("Ошибка"); }
+}
+function openBroadcast(){ document.getElementById("bcText").value=""; document.getElementById("bcResult").textContent=""; navTo("broadcast"); }
+async function sendBroadcast(e){
+  ripple(e);
+  const text=document.getElementById("bcText").value.trim();
+  if(!text){ return; }
+  if(!confirm("Отправить это сообщение всем пользователям?")) return;
+  try{
+    const r=await apiCall("/admin/broadcast",{password:adminPassword,text:text});
+    document.getElementById("bcResult").textContent="Поставлено в очередь: "+r.queued+" пользователям.";
+    document.getElementById("bcText").value="";
+  }catch(err){ document.getElementById("bcResult").textContent="Ошибка отправки."; }
+}
 
 function tvFullscreen(){  const el=document.querySelector(".tv-wrap");
   if(document.fullscreenElement){ document.exitFullscreen(); return; }

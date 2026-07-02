@@ -98,6 +98,10 @@
   .lock-wrap{position:relative;border-radius:13px;overflow:hidden;margin-bottom:16px;}
   .lock-wrap.unlocked .lock-over{display:none;}
   .lock-wrap .locked-content{filter:blur(7px);pointer-events:none;user-select:none;}
+  .verdict-box p.clamped{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .verdict-box p.expanded{display:block;}
+  .more-btn{background:none;border:none;color:var(--tg);font-size:12px;font-weight:600;cursor:pointer;padding:6px 0 0;}
+  .verdict-box p{white-space:pre-wrap;}
   .lock-wrap.unlocked .locked-content{filter:none;pointer-events:auto;}
   .lock-over{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
     text-align:center;padding:0 24px;background:linear-gradient(180deg,transparent,var(--bg) 70%);}
@@ -695,6 +699,7 @@ const I18N={
   histEmpty:"Пока пусто — сделай первый разбор.",ovUnlockFree:"Открыть бесплатно",
   refJoinedL:"зашли",refPaidL:"купили",notAdvice:"Не является финансовым советом.",
   chartFull:"⛶ Развернуть график",
+  aiWait:"ИИ анализирует график… Это займёт 15–20 секунд, подожди.",showMore:"Показать полностью",showLess:"Свернуть",
   ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 40 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 40 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
@@ -743,6 +748,7 @@ const I18N={
   histEmpty:"Nothing yet — run your first analysis.",ovUnlockFree:"Open for free",
   refJoinedL:"joined",refPaidL:"purchased",notAdvice:"Not financial advice.",
   chartFull:"⛶ Fullscreen chart",
+  aiWait:"AI is analyzing the chart… This takes 15–20 seconds, please wait.",showMore:"Show more",showLess:"Show less",
   ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 40 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 40 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
@@ -918,27 +924,56 @@ function completePay(){
   show("loading"); if(p&&p.data) setTimeout(()=>renderVerdict(p.data),1200);
 }
 function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); loadAiOverview(); show("overview"); }
+// put text in a paragraph; if long, collapse it with a show more/less toggle
+function setExpandable(p, text){
+  p.textContent = text;
+  p.classList.remove("clamped","expanded");
+  // remove any old toggle
+  const old = p.parentElement.querySelector(".more-btn"); if(old) old.remove();
+  // clamp only if the text is long
+  if((text||"").length > 160){
+    p.classList.add("clamped");
+    const btn=document.createElement("button");
+    btn.className="more-btn";
+    btn.textContent=I18N[lang].showMore;
+    btn.onclick=()=>{
+      const ex=p.classList.toggle("expanded");
+      p.classList.toggle("clamped",!ex);
+      btn.textContent=ex?I18N[lang].showLess:I18N[lang].showMore;
+    };
+    p.parentElement.appendChild(btn);
+  }
+}
 async function loadAiOverview(){
   if(!HAS_SERVER) return;
   const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
   const box=document.getElementById("ovLocked");
   const secs=box.querySelectorAll(".verdict-box p");
-  secs.forEach(p=>p.textContent="…");
+  secs.forEach((p,i)=>p.textContent = i===0 ? I18N[lang].aiWait : "…");
   try{
     const r=await apiCall("/ai/overview",{coin,lang});
     if(r.ok && r.text){ fillAiSections(r.text); }
+    else { secs.forEach(p=>p.textContent="—"); }
   }catch(e){ secs.forEach(p=>p.textContent="—"); }
 }
-// split AI text into the 4 overview sections by simple heading detection
+// split AI text by [TREND] [VOLATILITY] [LEVELS] [RECOMMENDATION] markers
 function fillAiSections(text){
   const box=document.getElementById("ovLocked");
   const ps=box.querySelectorAll(".verdict-box p");
-  // try to split on the section keywords; fallback: whole text in first, rest blank
-  const parts=text.split(/\n(?=[-•]?\s*(?:Trend|Тренд|Volatility|Волатильн|Key levels|Ключевые|Recommendation|Рекоменд))/i);
-  if(ps[0]) ps[0].textContent=(parts[0]||text).replace(/^[-•\s]*(Trend|Тренд)[:\s-]*/i,"").trim();
-  if(ps[1]) ps[1].textContent=(parts[1]||"").replace(/^[-•\s]*(Volatility|Волатильн\w*)[:\s-]*/i,"").trim()||"—";
-  if(ps[2]) ps[2].textContent=(parts[2]||"").replace(/^[-•\s]*(Key levels|Ключевые\w*)[:\s-]*/i,"").trim()||"—";
-  if(ps[3]) ps[3].textContent=(parts[3]||"").replace(/^[-•\s]*(Recommendation|Рекоменд\w*)[:\s-]*/i,"").trim()||"—";
+  function grab(tag,next){
+    const re=new RegExp("\\["+tag+"\\]([\\s\\S]*?)(?=\\[(?:"+next+")\\]|$)","i");
+    const m=text.match(re); return m ? m[1].trim() : "";
+  }
+  const trend=grab("TREND","VOLATILITY|LEVELS|RECOMMENDATION");
+  const vol=grab("VOLATILITY","LEVELS|RECOMMENDATION");
+  const lvl=grab("LEVELS","RECOMMENDATION");
+  const rec=grab("RECOMMENDATION","$");
+  // fallback: if markers missing, put whole text in first block
+  if(!trend && !vol && !lvl && !rec){ if(ps[0]) setExpandable(ps[0], text); if(ps[1])ps[1].textContent=""; if(ps[2])ps[2].textContent=""; if(ps[3])ps[3].textContent=""; return; }
+  if(ps[0]) setExpandable(ps[0], trend||"—");
+  if(ps[1]) setExpandable(ps[1], vol||"—");
+  if(ps[2]) setExpandable(ps[2], lvl||"—");
+  if(ps[3]) setExpandable(ps[3], rec||"—");
 }
 async function unlockOverview(){
   if(HAS_SERVER){
@@ -1029,10 +1064,10 @@ function renderVerdict(d){
 }
 async function loadAiReview(d){
   const vt=document.getElementById("verdictText"), td=document.getElementById("todoList");
-  const prevV=vt.textContent; vt.textContent="…"; td.innerHTML="";
+  const prevV=vt.textContent; vt.textContent=I18N[lang].aiWait; td.innerHTML="";
   try{
     const r=await apiCall("/ai/review",{coin:d.coin,side:d.side,lev:d.lev,entry:d.entry,margin:d.margin,balance:d.balance,stopPct:d.stopPct,tpPct:d.tpPct,lang});
-    if(r.ok && r.text){ vt.textContent=r.text; d.ai=r.text; }
+    if(r.ok && r.text){ setExpandable(vt, r.text); d.ai=r.text; }
     else { vt.textContent=prevV; }
   }catch(e){ vt.textContent=prevV; }
 }

@@ -26,7 +26,7 @@
   .device{width:100%;max-width:520px;height:100vh;height:100dvh;background:var(--surface);
     overflow:hidden;display:flex;flex-direction:column;position:relative;transition:background .25s;}
 
-  .hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px;
+  .hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));
     display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:58px;}
   .hdr .ic{width:24px;height:24px;color:var(--tg);flex-shrink:0;}
   .hdr h1{font-size:16px;font-weight:600;margin:0;}
@@ -421,9 +421,9 @@
           <span class="val"><span data-i18n="usdtTag">USDT</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
         </div>
       </div>
-      <div class="free-row" id="freeRow" style="display:none">
-        <div class="free-pill"><span id="freeOvN">0</span> <span data-i18n="freeOv">бесплатных обзоров</span></div>
-        <div class="free-pill"><span id="freeRvN">0</span> <span data-i18n="freeRv">бесплатных разборов</span></div>
+      <div class="free-row" id="freeRow">
+        <div class="free-pill"><span id="freeOvN">1</span> <span data-i18n="freeOv">бесплатных обзоров</span></div>
+        <div class="free-pill"><span id="freeRvN">1</span> <span data-i18n="freeRv">бесплатных разборов</span></div>
       </div>
 
       <p class="sec-title" data-i18n="refH">Пригласи друзей</p>
@@ -484,7 +484,40 @@
           <span class="val"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
         </div>
       </div>
+
+      <div id="adminSetGroup" style="display:none">
+        <p class="sec-title">Admin</p>
+        <div class="set-group">
+          <div class="set-row" onclick="openAdmin()">
+            <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+            <span class="txt">Админ-панель</span>
+            <span class="val"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
       <p class="about" data-i18n="about">NoRekt — оценка риска твоей позиции и обзор монеты.</p>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="screen" id="s-admin">
+      <div id="adminGate">
+        <p class="lead">Введи пароль администратора.</p>
+        <input id="adminPass" type="password" class="mb" placeholder="••••••••" autocomplete="off">
+        <button class="btn" onclick="adminLogin(event)">Войти</button>
+        <p id="adminErr" style="color:var(--red);font-size:12px;margin:10px 0 0;display:none;">Неверный пароль.</p>
+        <button class="btn-ghost" onclick="navTo('settings')" data-i18n="btnBack">← Назад</button>
+      </div>
+      <div id="adminBody" style="display:none">
+        <div class="metrics" id="adminTotals"></div>
+        <p class="sec-title">Топ по покупкам</p>
+        <div class="hist" id="adminBuyers"></div>
+        <p class="sec-title" style="margin-top:16px">Топ по рефералам</p>
+        <div class="hist" id="adminRef"></div>
+        <p class="sec-title" style="margin-top:16px">Последние пользователи</p>
+        <div class="hist" id="adminUsers"></div>
+        <button class="btn-ghost" onclick="navTo('settings')" data-i18n="btnBack">← Назад</button>
+      </div>
     </section>
 
     <!-- FAQ -->
@@ -720,7 +753,7 @@ let lang="en",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",s
 const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 const TG_USER = (TG && TG.initDataUnsafe && TG.initDataUnsafe.user) ? TG.initDataUnsafe.user : null;
 const TG_ID = TG_USER ? TG_USER.id : null;   // привязка всего к одному пользователю по Telegram ID (есть только внутри бота)
-if (TG) { try { TG.ready(); TG.expand(); if (typeof TG.requestFullscreen==="function") TG.requestFullscreen(); TG.setHeaderColor && TG.setHeaderColor("#0E1621"); } catch(e){} }
+if (TG) { try { TG.ready(); TG.expand(); TG.setHeaderColor && TG.setHeaderColor("#0E1621"); } catch(e){} }
 
 // ── API ──
 const API_BASE = "https://norekt-server-production.up.railway.app/api";
@@ -775,10 +808,10 @@ function setTheme(tn){
 function openSheet(){document.querySelectorAll(".opt").forEach(o=>o.classList.toggle("sel",o.dataset.t===theme));document.getElementById("overlay").classList.add("on");}
 function closeSheet(){document.getElementById("overlay").classList.remove("on");}
 
-const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle"};
+const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle",admin:"navSettings"};
 function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];}
 function show(id){current=id;document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("s-"+id).classList.add("active");document.querySelector(".body").scrollTop=0;setHeader();if(id==="input")requestAnimationFrame(loadTV);if(id==="deposit"){const d=document.getElementById("depBalVal");if(d)d.textContent=usdtBalance.toFixed(2);document.getElementById("depStep1").style.display="block";document.getElementById("depStep2").style.display="none";document.getElementById("depReq").style.display="none";}}
-function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);if(id==="profile"){loadMe();loadHistory();}}
+function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input",admin:"settings"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);if(id==="profile"){loadMe();loadHistory();}}
 
 function toggleTog(which,e){
   const el=document.getElementById(which==="stop"?"stopTog":"tpTog");
@@ -794,7 +827,7 @@ let usdtBalance=0;
 function renderBalance(){const bp=document.getElementById("balProfile");if(bp)bp.textContent=balance;document.getElementById("balUsdt").textContent=usdtBalance.toFixed(2);const m=document.getElementById("payUsdtMeta");if(m)m.textContent=usdtCost+" $ · "+(lang==="ru"?"баланс ":"balance ")+usdtBalance.toFixed(2);
   const fo=document.getElementById("freeOvN"),fr=document.getElementById("freeRvN"),row=document.getElementById("freeRow");
   if(fo)fo.textContent=freeOverviews; if(fr)fr.textContent=freeReviews;
-  if(row)row.style.display=(freeOverviews>0||freeReviews>0)?"flex":"none";
+  if(row)row.style.display="flex";
 }
 function renderReferral(){
   const l=document.getElementById("refLinkVal"); if(l&&refLink) l.textContent=refLink;
@@ -1006,8 +1039,49 @@ function renderCoins(){
 }
 function pickCoin(sym){document.getElementById("fCoin").value=sym;closeCoins();loadTV();}
 
-function tvFullscreen(){
-  const el=document.querySelector(".tv-wrap");
+// ── admin panel (only visible/usable for the admin Telegram ID) ──
+let adminPassword=null;
+async function checkAdmin(){
+  if(!HAS_SERVER) return;
+  try{ const r=await apiCall("/admin/is",{}); if(r.admin){ const g=document.getElementById("adminSetGroup"); if(g) g.style.display="block"; } }catch(e){}
+}
+function openAdmin(){
+  document.getElementById("adminBody").style.display="none";
+  document.getElementById("adminGate").style.display="block";
+  document.getElementById("adminErr").style.display="none";
+  document.getElementById("adminPass").value="";
+  navTo("admin");
+}
+async function adminLogin(e){
+  ripple(e);
+  const pass=document.getElementById("adminPass").value;
+  try{
+    const r=await apiCall("/admin/stats",{password:pass});
+    adminPassword=pass;
+    document.getElementById("adminGate").style.display="none";
+    document.getElementById("adminBody").style.display="block";
+    renderAdmin(r);
+  }catch(err){ document.getElementById("adminErr").style.display="block"; }
+}
+function nm(u){ return (u.name||("id"+u.telegram_id)) + (u.username?(" @"+u.username):""); }
+function renderAdmin(d){
+  const t=d.totals||{};
+  document.getElementById("adminTotals").innerHTML =
+    metric("Пользователей", t.users) + metric("Покупателей", t.buyers) +
+    metric("Покупок", t.purchases) + metric("Рефералов", t.referrals) +
+    metric("USD оборот", Number(t.usd_spent||0).toFixed(2)) + metric("Разборов", t.analyses);
+  document.getElementById("adminBuyers").innerHTML = (d.topBuyers||[]).map(u=>
+    row(nm(u), u.purchases+" · $"+Number(u.usd||0).toFixed(2))).join("") || empty();
+  document.getElementById("adminRef").innerHTML = (d.topReferrers||[]).map(u=>
+    row(nm(u), u.invited+" / "+u.invited_paid+" куп.")).join("") || empty();
+  document.getElementById("adminUsers").innerHTML = (d.recentUsers||[]).map(u=>
+    row(nm(u), (u.has_paid?"✓ ":"")+ "ov"+u.free_overviews+" rv"+u.free_reviews)).join("") || empty();
+}
+function metric(k,v){ return '<div class="metric"><p class="k">'+k+'</p><p class="v">'+(v??0)+'</p></div>'; }
+function row(a,b){ return '<div class="hist-item"><span class="coin" style="flex:1">'+a+'</span><span class="meta">'+b+'</span></div>'; }
+function empty(){ return '<div class="cs-msg">—</div>'; }
+
+function tvFullscreen(){  const el=document.querySelector(".tv-wrap");
   if(document.fullscreenElement){ document.exitFullscreen(); return; }
   if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
   else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
@@ -1042,7 +1116,7 @@ function openHistory(id){
   else { it.__fromHistory=true; renderVerdict(it); }
 }
 
-setSide("long");setMode("view");setTheme("dark");renderBalance();loadMe();
+setSide("long");setMode("view");setTheme("dark");renderBalance();loadMe();checkAdmin();
 
 /* deposit config: [label, address, serverNetworkKey] */
 const ADDR_EVM="0xd6207b9eeaa559699dcf62272ed416881bba8a27";

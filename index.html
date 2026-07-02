@@ -86,6 +86,9 @@
   .coin-card:active{transform:scale(.97);border-color:var(--tg);}
   .cc-sym{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--txt);}
   .cc-name{font-size:11px;color:var(--muted);}
+  .free-row{display:flex;gap:10px;margin-bottom:22px;}
+  .free-pill{flex:1;background:rgba(46,204,113,.10);border:1px solid rgba(46,204,113,.3);border-radius:12px;padding:12px;text-align:center;font-size:11px;color:var(--muted);line-height:1.4;}
+  .free-pill span:first-child{display:block;font-family:var(--mono);font-size:20px;font-weight:600;color:var(--green);margin-bottom:2px;}
   .lock-wrap{position:relative;border-radius:13px;overflow:hidden;margin-bottom:16px;}
   .lock-wrap.unlocked .lock-over{display:none;}
   .lock-wrap .locked-content{filter:blur(7px);pointer-events:none;user-select:none;}
@@ -408,6 +411,21 @@
           <span class="val"><span data-i18n="usdtTag">USDT</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
         </div>
       </div>
+      <div class="free-row" id="freeRow" style="display:none">
+        <div class="free-pill"><span id="freeOvN">0</span> <span data-i18n="freeOv">бесплатных обзоров</span></div>
+        <div class="free-pill"><span id="freeRvN">0</span> <span data-i18n="freeRv">бесплатных разборов</span></div>
+      </div>
+
+      <p class="sec-title" data-i18n="refH">Пригласи друзей</p>
+      <div class="set-group" style="padding:14px 15px;">
+        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 12px;" data-i18n="refText">За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.</p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="refLinkVal" style="font-family:var(--mono);font-size:12px;word-break:break-all;flex:1;color:var(--tg);line-height:1.4;">—</span>
+          <button class="btn-ghost" style="width:auto;margin:0;padding:8px 14px;flex-shrink:0;" onclick="copyRef(this)" data-i18n="refCopy">Копировать</button>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);"><span data-i18n="refInvited">Приглашено</span>: <span id="refCount" style="color:var(--txt);font-weight:600;">0</span></div>
+      </div>
+
       <p class="sec-title" data-i18n="histH">История разборов</p>
       <div class="hist">
         <div class="hist-item"><span class="dot" style="background:var(--red)"></span><span class="coin">ETH 25x</span><span class="meta" data-i18n="riskHigh">высокий</span></div>
@@ -603,6 +621,7 @@ const I18N={
   depPickCoin:"Чем оплатить",depChangeCoin:"← Другая монета",depAmount:"Сколько пополнить",depGen:"Получить",depSendExact:"Отправь ровно эту сумму",
   depExactWarn:"Отправь ровно эту сумму — последние цифры это метка платежа, по ней бот узнаёт, что перевод твой. Другая сумма не зачислится автоматически.",
   depNoAddr:"Адрес для этой монеты ещё не настроен — добавь свой на бэкенде.",depEnterAmount:"Введи сумму больше нуля.",depPaid:"Я оплатил",depWaiting:"Платёж проверяется. После подтверждения сети баланс пополнится. Можешь сделать ещё одно пополнение.",
+  freeOv:"бесплатных обзоров",freeRv:"бесплатных разборов",refH:"Пригласи друзей",refCopy:"Копировать",refInvited:"Приглашено",refText:"За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.",
   ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 30 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 30 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
@@ -647,6 +666,7 @@ const I18N={
   depPickCoin:"Pay with",depChangeCoin:"← Other coin",depAmount:"Amount to top up",depGen:"Get",depSendExact:"Send exactly this amount",
   depExactWarn:"Send exactly this amount — the last digits are a payment tag the bot uses to recognize your transfer. A different amount won't be credited automatically.",
   depNoAddr:"No address set for this coin yet — add yours on the backend.",depEnterAmount:"Enter an amount greater than zero.",depPaid:"I've paid",depWaiting:"Payment is being verified. Once the network confirms it, your balance updates. You can make another top-up.",
+  freeOv:"free overviews",freeRv:"free reviews",refH:"Invite friends",refCopy:"Copy",refInvited:"Invited",refText:"A free coin overview for every friend. If they pay — you get a free trade review.",
   ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 30 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 30 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
@@ -680,26 +700,35 @@ if (TG) { try { TG.ready(); TG.expand(); } catch(e){} }
 // ── API ──
 const API_BASE = "https://norekt-server-production.up.railway.app/api";
 const INIT_DATA = TG ? (TG.initData || "") : "";
+const REF_PARAM = (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) ? TG.initDataUnsafe.start_param : null;
 const HAS_SERVER = !!(TG && INIT_DATA);   // real mode only inside Telegram
 async function apiCall(path, body){
+  const payload = Object.assign({}, body||{});
+  if (REF_PARAM && !("ref" in payload)) payload.ref = REF_PARAM;
   const r = await fetch(API_BASE+path, {
     method:"POST",
     headers:{ "Content-Type":"application/json", "X-Init-Data": INIT_DATA },
-    body: JSON.stringify(body||{})
+    body: JSON.stringify(payload)
   });
   if(!r.ok) throw new Error("api_"+r.status);
   return r.json();
+}
+let freeOverviews=0, freeReviews=0, refLink=null, invitedCount=0;
+function applyMe(me){
+  balance = me.stars||0; usdtBalance = Number(me.usd_balance)||0;
+  freeOverviews = me.free_overviews||0; freeReviews = me.free_reviews||0;
+  invitedCount = me.invited||0; if(me.ref_link) refLink = me.ref_link;
+  renderBalance(); renderReferral();
 }
 async function loadMe(){
   if(!HAS_SERVER) return;                  // browser preview -> keep demo values
   try{
     const me = await apiCall("/me", {});
-    balance = me.stars||0; usdtBalance = Number(me.usd_balance)||0;
     if(me.name){ const el=document.getElementById("pnameEl"); if(el) el.textContent=me.name; }
     if(me.avatar_url){ const a=document.getElementById("avatarEl"); if(a){ a.textContent=""; a.style.backgroundImage="url("+me.avatar_url+")"; } }
     else if(me.name){ const a=document.getElementById("avatarEl"); if(a && !a.style.backgroundImage) a.textContent=me.name.charAt(0).toUpperCase(); }
     if(me.username){ const h=document.querySelector(".phandle"); if(h) h.textContent="@"+me.username; }
-    renderBalance();
+    applyMe(me);
   }catch(e){ console.warn("loadMe failed", e); }
 }
 
@@ -737,7 +766,16 @@ function setMode(m){mode=m;const idx={view:0,in:1}[m];document.getElementById("m
 function setSide(sd){side=sd;const s=document.getElementById("sideSeg");s.classList.toggle("en",sd==="short");s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",(i===0)===(sd==="long")));}
 
 let usdtBalance=0;
-function renderBalance(){const bp=document.getElementById("balProfile");if(bp)bp.textContent=balance;document.getElementById("balUsdt").textContent=usdtBalance.toFixed(2);const m=document.getElementById("payUsdtMeta");if(m)m.textContent=usdtCost+" $ · "+(lang==="ru"?"баланс ":"balance ")+usdtBalance.toFixed(2);}
+function renderBalance(){const bp=document.getElementById("balProfile");if(bp)bp.textContent=balance;document.getElementById("balUsdt").textContent=usdtBalance.toFixed(2);const m=document.getElementById("payUsdtMeta");if(m)m.textContent=usdtCost+" $ · "+(lang==="ru"?"баланс ":"balance ")+usdtBalance.toFixed(2);
+  const fo=document.getElementById("freeOvN"),fr=document.getElementById("freeRvN"),row=document.getElementById("freeRow");
+  if(fo)fo.textContent=freeOverviews; if(fr)fr.textContent=freeReviews;
+  if(row)row.style.display=(freeOverviews>0||freeReviews>0)?"flex":"none";
+}
+function renderReferral(){
+  const l=document.getElementById("refLinkVal"); if(l&&refLink) l.textContent=refLink;
+  const c=document.getElementById("refCount"); if(c) c.textContent=invitedCount;
+}
+function copyRef(btn){ if(!refLink)return; copyVal(btn, refLink); }
 
 // Step 1: choose payment method. payload: {kind:"review"|"overview", cs:starsCost, cu:usdtCost, data?}
 function openPay(payload){
@@ -799,7 +837,15 @@ function completePay(){
   show("loading"); if(p&&p.data) setTimeout(()=>renderVerdict(p.data),1200);
 }
 function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); show("overview"); }
-function unlockOverview(){ openPay({kind:"overview",cs:30,cu:0.5}); }
+async function unlockOverview(){
+  if(HAS_SERVER){
+    try{
+      const res = await apiCall("/overview/free", {});
+      if(res.free){ applyMe(res.balances); revealOverview(); return; }
+    }catch(e){}
+  } else if(freeOverviews>0){ freeOverviews--; revealOverview(); return; }
+  openPay({kind:"overview",cs:30,cu:0.5});
+}
 function backFromPay(){ if(backScreen==="overview"){navTo("input");show("overview");} else if(backScreen==="input"){navTo("input");} else {navTo("settings");} backScreen="input"; }
 function topupStars(){ backScreen="profile"; show("stars"); }
 function updateModeUI(){const t=I18N[lang];const l=document.getElementById("leadText");if(l)l.textContent=mode==="view"?t.leadView:mode==="in"?t.leadIn:t.leadPlan;const b=document.getElementById("checkBtn");if(b)b.textContent=mode==="view"?t.btnView:mode==="in"?t.btnCheckIn:t.btnCheck;}
@@ -840,8 +886,16 @@ function runCheck(e){
   let liqPrice=null;
   if(entry>0){ liqPrice = side==="long" ? entry*(1-liqMove/100) : entry*(1+liqMove/100); }
 
-  show("loading");
-  openPay({kind:"review",cs:REVIEW_COST,cu:usdtCost,data:{coin,lev,bankPct,liqMove,riskPct,score,rr,liqPrice}});
+  tryFreeThenPayReview({coin,lev,bankPct,liqMove,riskPct,score,rr,liqPrice});
+}
+async function tryFreeThenPayReview(data){
+  if(HAS_SERVER){
+    try{
+      const res = await apiCall("/review/free", {});
+      if(res.free){ applyMe(res.balances); show("loading"); setTimeout(()=>renderVerdict(data),1200); return; }
+    }catch(e){}
+  } else if(freeReviews>0){ freeReviews--; show("loading"); setTimeout(()=>renderVerdict(data),1200); return; }
+  openPay({kind:"review",cs:REVIEW_COST,cu:usdtCost,data:data});
 }
 function animateCount(el,to,dec,suf,pre){let s=null;function step(ts){if(!s)s=ts;const p=Math.min(1,(ts-s)/850), e=1-Math.pow(1-p,3),v=to*e;el.textContent=(pre||"")+(dec?v.toFixed(dec):Math.round(v))+(suf||"");if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
 function renderVerdict(d){

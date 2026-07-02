@@ -301,7 +301,8 @@
         <button class="coin-open" onclick="openCoins()" aria-label="coins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
       </div>
 
-      <div class="tv-wrap"><button class="tv-full" onclick="tvFullscreen()" aria-label="fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
+      <div class="tv-wrap"><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
+      <button class="btn-ghost" style="margin:-6px 0 14px;height:38px;font-size:13px;" onclick="tvFullscreen()" data-i18n="chartFull">⛶ Развернуть график</button>
 
       <div id="inFields" style="display:none">
         <label class="field-label" data-i18n="lblSide">Направление</label>
@@ -394,7 +395,7 @@
         <div class="lock-over">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;color:var(--tg)"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           <p class="lock-txt" data-i18n="ovLockTxt">Открой полный обзор — ключевые уровни и резюме</p>
-          <button class="btn" id="ovUnlockBtn" style="max-width:240px;margin:0 auto;" onclick="unlockOverview()" data-i18n="ovUnlock">Открыть за 30 ★ · 0.5 $</button>
+          <button class="btn" id="ovUnlockBtn" style="max-width:240px;margin:0 auto;" onclick="unlockOverview()" data-i18n="ovUnlock">Открыть за 40 ★ · 0.5 $</button>
         </div>
       </div>
 
@@ -681,7 +682,7 @@ const I18N={
   verified:"разбор проверен вручную",btnNew:"← Новый разбор",btnBack:"← Назад",
   stReviews:"разборов",stStars:"Баланс Stars",stUsdt:"Баланс USDT",histH:"История разборов",riskHigh:"высокий",riskMid:"средний",riskLow:"низкий",
   balLab:"Баланс",payTitle:"Как оплатить разбор?",paySubChoose:"Стоимость: 80 ★ или 1 $",payStars:"Telegram Stars",payUsdt:"Баланс USDT",
-  starsTitle:"Оплата звёздами",starsSub:"Оплатить разбор — 80 Telegram Stars.",starsPay:"Оплатить 80 ★",topupStars:"Пополнить звёздами",
+  starsTitle:"Оплата звёздами",starsSub:"Оплатить — {n} Telegram Stars.",starsPay:"Оплатить 80 ★",topupStars:"Пополнить звёздами",
   starsPreview:"В превью оплата недоступна — заработает внутри бота. Запускаю разбор для демонстрации.",starsBot:"Открываю счёт на 80 ★ в Telegram…",
   usdtLow:"На балансе {bal} USDT — нужно 1. Открываю пополнение.",
   csTitle:"Выбор монеты",csCap:"Топ-50",csGain:"Рост 24ч",csLose:"Падение 24ч",csVol:"Объём",csLoad:"Загружаю рынок…",csErr:"Данные недоступны в превью — заработают на хостинге или локально.",namePrompt:"Новое имя:",
@@ -691,7 +692,8 @@ const I18N={
   freeOv:"бесплатных обзоров",freeRv:"бесплатных разборов",refH:"Пригласи друзей",refCopy:"Копировать",refInvited:"Приглашено",refText:"За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.",
   histEmpty:"Пока пусто — сделай первый разбор.",ovUnlockFree:"Открыть бесплатно",
   refJoinedL:"зашли",refPaidL:"купили",notAdvice:"Не является финансовым советом.",
-  ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 30 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 30 ★ или 0.5 $",
+  chartFull:"⛶ Развернуть график",
+  ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 40 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 40 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
   setDeposit:"Депозит",usdtTag:"USDT",depBal:"Баланс USDT",depNetwork:"Сеть пополнения",depAddr:"Адрес для пополнения",depCopy:"Копировать",depCopied:"Скопировано",
@@ -728,7 +730,7 @@ const I18N={
   verified:"reviewed manually",btnNew:"← New review",btnBack:"← Back",
   stReviews:"reviews",stStars:"Stars balance",stUsdt:"USDT balance",histH:"Review history",riskHigh:"high",riskMid:"medium",riskLow:"low",
   balLab:"Balance",payTitle:"How to pay for the review?",paySubChoose:"Cost: 80 ★ or 1 $",payStars:"Telegram Stars",payUsdt:"USDT balance",
-  starsTitle:"Pay with Stars",starsSub:"Pay for the review — 80 Telegram Stars.",starsPay:"Pay 80 ★",topupStars:"Top up with Stars",
+  starsTitle:"Pay with Stars",starsSub:"Pay — {n} Telegram Stars.",starsPay:"Pay 80 ★",topupStars:"Top up with Stars",
   starsPreview:"Payment isn't available in preview — it works inside the bot. Running the review for demo.",starsBot:"Opening an 80 ★ invoice in Telegram…",
   usdtLow:"Balance is {bal} USDT — 1 is required. Opening top-up.",
   csTitle:"Choose a coin",csCap:"Top 50",csGain:"Gainers 24h",csLose:"Losers 24h",csVol:"Volume",csLoad:"Loading market…",csErr:"Data unavailable in preview — works on hosting or locally.",namePrompt:"New name:",
@@ -738,7 +740,8 @@ const I18N={
   freeOv:"free overviews",freeRv:"free reviews",refH:"Invite friends",refCopy:"Copy",refInvited:"Invited",refText:"A free coin overview for every friend. If they pay — you get a free trade review.",
   histEmpty:"Nothing yet — run your first analysis.",ovUnlockFree:"Open for free",
   refJoinedL:"joined",refPaidL:"purchased",notAdvice:"Not financial advice.",
-  ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 30 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 30 ★ or 0.5 $",
+  chartFull:"⛶ Fullscreen chart",
+  ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 40 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 40 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
   setDeposit:"Deposit",usdtTag:"USDT",depBal:"USDT balance",depNetwork:"Deposit network",depAddr:"Deposit address",depCopy:"Copy",depCopied:"Copied",
@@ -884,7 +887,8 @@ async function payWith(method){
 
 function setStarsScreen(cost){
   document.getElementById("starsAmt").innerHTML='<span style="font-size:24px">★</span>'+cost;
-  document.getElementById("starsBtn").textContent=I18N[lang].starsPay.replace("80",cost);
+  document.getElementById("starsBtn").textContent=I18N[lang].starsPay.replace(/\d+/,cost);
+  const sub=document.querySelector("#s-stars .pay-sub"); if(sub) sub.textContent=I18N[lang].starsSub.replace("{n}",cost);
 }
 
 // Stars payment: server creates the XTR invoice link, WebApp opens it.
@@ -919,7 +923,7 @@ async function unlockOverview(){
       if(res.free){ applyMe(res.balances); revealOverview(); return; }
     }catch(e){}
   } else if(freeOverviews>0){ freeOverviews--; revealOverview(); return; }
-  openPay({kind:"overview",cs:30,cu:0.5});
+  openPay({kind:"overview",cs:40,cu:0.5});
 }
 function backFromPay(){ if(backScreen==="overview"){navTo("input");show("overview");} else if(backScreen==="input"){navTo("input");} else {navTo("settings");} backScreen="input"; }
 function topupStars(){ backScreen="profile"; show("stars"); }
@@ -1031,9 +1035,18 @@ function setCoinTab(s){coinTab=s;document.querySelectorAll(".cs-tab").forEach(b=
 async function loadCoins(){
   const list=document.getElementById("coinList");list.innerHTML='<div class="cs-spin"></div>';
   try{
-    const r=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&price_change_percentage=24h");
+    // 1) top by market cap from CoinGecko
+    const r=await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&price_change_percentage=24h");
     if(!r.ok)throw 0;const d=await r.json();
-    coinData=d.map((c,i)=>({rank:i+1,sym:(c.symbol||"").toUpperCase(),price:c.current_price,chg:c.price_change_percentage_24h||0,vol:c.total_volume||0}));
+    // 2) which USDT pairs actually exist on Binance (so the chart works)
+    let binance=null;
+    try{
+      const b=await fetch("https://api.binance.com/api/v3/exchangeInfo?permissions=SPOT");
+      if(b.ok){ const bj=await b.json(); binance=new Set((bj.symbols||[]).filter(x=>x.quoteAsset==="USDT"&&x.status==="TRADING").map(x=>x.baseAsset)); }
+    }catch(e){}
+    let mapped=d.map((c,i)=>({rank:i+1,sym:(c.symbol||"").toUpperCase(),price:c.current_price,chg:c.price_change_percentage_24h||0,vol:c.total_volume||0}));
+    if(binance) mapped=mapped.filter(c=>binance.has(c.sym));   // drop coins with no chart (e.g. FIGR_HELOC)
+    coinData=mapped.slice(0,50).map((c,i)=>Object.assign(c,{rank:i+1}));
     coinLoaded=true;renderCoins();
   }catch(e){list.innerHTML='<div class="cs-msg">'+I18N[lang].csErr+'</div>';}
 }

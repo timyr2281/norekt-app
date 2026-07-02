@@ -22,10 +22,9 @@
     --txt:#F2F2F4;--muted:#86868B;--hint:#56565A;--glass:rgba(255,255,255,.12);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--txt);min-height:100vh;
-    display:flex;align-items:center;justify-content:center;padding:16px;transition:background .25s;}
-  .device{width:100%;max-width:390px;height:800px;max-height:95vh;background:var(--surface);
-    border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative;
-    box-shadow:0 24px 60px rgba(0,0,0,.5);border:1px solid var(--line);transition:background .25s;}
+    display:flex;align-items:stretch;justify-content:center;transition:background .25s;}
+  .device{width:100%;max-width:520px;height:100vh;height:100dvh;background:var(--surface);
+    overflow:hidden;display:flex;flex-direction:column;position:relative;transition:background .25s;}
 
   .hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px;
     display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:58px;}
@@ -89,6 +88,13 @@
   .free-row{display:flex;gap:10px;margin-bottom:22px;}
   .free-pill{flex:1;background:rgba(46,204,113,.10);border:1px solid rgba(46,204,113,.3);border-radius:12px;padding:12px;text-align:center;font-size:11px;color:var(--muted);line-height:1.4;}
   .free-pill span:first-child{display:block;font-family:var(--mono);font-size:20px;font-weight:600;color:var(--green);margin-bottom:2px;}
+  .ref-chart{display:flex;justify-content:center;margin-bottom:14px;}
+  .ref-chart circle{transition:stroke-dasharray .7s ease;}
+  .ref-stats{display:flex;gap:8px;}
+  .ref-stat{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:1px;}
+  .ref-dot{width:6px;height:6px;border-radius:50%;margin-bottom:2px;}
+  .ref-n{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--txt);}
+  .ref-l{font-size:10px;color:var(--muted);}
   .lock-wrap{position:relative;border-radius:13px;overflow:hidden;margin-bottom:16px;}
   .lock-wrap.unlocked .lock-over{display:none;}
   .lock-wrap .locked-content{filter:blur(7px);pointer-events:none;user-select:none;}
@@ -247,6 +253,10 @@
   .mode-seg button{flex:1;padding:8px 4px;font-size:11px;}
   .tv-wrap{position:relative;height:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;background:var(--surface-2);}
   .tv-wrap iframe{border-radius:14px;}
+  .tv-full{position:absolute;top:8px;right:8px;z-index:3;width:30px;height:30px;border:none;border-radius:8px;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .tv-full svg{width:16px;height:16px;}
+  .tv-wrap:fullscreen{height:100vh;border-radius:0;}
+  .tv-wrap:fullscreen #tvChart{height:100vh;}
   .tv-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--hint);text-align:center;padding:0 18px;line-height:1.5;z-index:1;}
   .collapse{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface-2);}
   .collapse-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;font-size:14px;font-weight:600;font-family:var(--mono);letter-spacing:.04em;}
@@ -291,7 +301,7 @@
         <button class="coin-open" onclick="openCoins()" aria-label="coins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
       </div>
 
-      <div class="tv-wrap"><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
+      <div class="tv-wrap"><button class="tv-full" onclick="tvFullscreen()" aria-label="fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
 
       <div id="inFields" style="display:none">
         <label class="field-label" data-i18n="lblSide">Направление</label>
@@ -365,7 +375,7 @@
       <div class="verdict-box" id="verdictBox"><h3 data-i18n="verdictH">Вердикт</h3><p id="verdictText">—</p></div>
       <p class="sec-title" data-i18n="todoH">Что делать</p>
       <ul class="todo" id="todoList"></ul>
-      <div class="verified"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="verified">разбор проверен вручную</span></div>
+      <p style="font-size:10px;color:var(--hint);margin:14px 0 0;text-align:center;" data-i18n="notAdvice">Не является финансовым советом.</p>
       <button class="btn-ghost" onclick="show('input')" data-i18n="btnNew">← Новый разбор</button>
     </section>
 
@@ -384,11 +394,11 @@
         <div class="lock-over">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;color:var(--tg)"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           <p class="lock-txt" data-i18n="ovLockTxt">Открой полный обзор — ключевые уровни и резюме</p>
-          <button class="btn" style="max-width:240px;margin:0 auto;" onclick="unlockOverview()" data-i18n="ovUnlock">Открыть за 30 ★ · 0.5 $</button>
+          <button class="btn" id="ovUnlockBtn" style="max-width:240px;margin:0 auto;" onclick="unlockOverview()" data-i18n="ovUnlock">Открыть за 30 ★ · 0.5 $</button>
         </div>
       </div>
 
-      <div class="disclaimer"><p data-i18n="ovNote">Демо-обзор. Не является сигналом или советом покупать/продавать.</p></div>
+      <div class="disclaimer"><p data-i18n="ovNote">Не является сигналом или советом покупать/продавать.</p></div>
       <button class="btn-ghost" onclick="show('input')" data-i18n="btnNew">← Новый разбор</button>
     </section>
 
@@ -418,20 +428,31 @@
 
       <p class="sec-title" data-i18n="refH">Пригласи друзей</p>
       <div class="set-group" style="padding:14px 15px;">
-        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 12px;" data-i18n="refText">За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.</p>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <span id="refLinkVal" style="font-family:var(--mono);font-size:12px;word-break:break-all;flex:1;color:var(--tg);line-height:1.4;">—</span>
+        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 14px;" data-i18n="refText">За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.</p>
+
+        <div class="ref-chart">
+          <svg viewBox="0 0 120 120" width="104" height="104">
+            <circle cx="60" cy="60" r="48" fill="none" stroke="var(--line)" stroke-width="12"/>
+            <circle id="refArc" cx="60" cy="60" r="48" fill="none" stroke="var(--green)" stroke-width="12"
+              stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)"/>
+            <text id="refArcNum" x="60" y="55" text-anchor="middle" fill="var(--txt)" font-size="26" font-weight="600" font-family="var(--mono)">0</text>
+            <text x="60" y="76" text-anchor="middle" fill="var(--muted)" font-size="10" data-i18n="refInvited">приглашено</text>
+          </svg>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <span id="refLinkVal" style="font-family:var(--mono);font-size:12px;flex:1;color:var(--tg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</span>
           <button class="btn-ghost" style="width:auto;margin:0;padding:8px 14px;flex-shrink:0;" onclick="copyRef(this)" data-i18n="refCopy">Копировать</button>
         </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted);"><span data-i18n="refInvited">Приглашено</span>: <span id="refCount" style="color:var(--txt);font-weight:600;">0</span></div>
+
+        <div class="ref-stats">
+          <div class="ref-stat"><span class="ref-dot" style="background:var(--tg)"></span><span class="ref-n" id="refJoined">0</span><span class="ref-l" data-i18n="refJoinedL">зашли</span></div>
+          <div class="ref-stat"><span class="ref-dot" style="background:var(--green)"></span><span class="ref-n" id="refPaid">0</span><span class="ref-l" data-i18n="refPaidL">купили</span></div>
+        </div>
       </div>
 
       <p class="sec-title" data-i18n="histH">История разборов</p>
-      <div class="hist">
-        <div class="hist-item"><span class="dot" style="background:var(--red)"></span><span class="coin">ETH 25x</span><span class="meta" data-i18n="riskHigh">высокий</span></div>
-        <div class="hist-item"><span class="dot" style="background:var(--amber)"></span><span class="coin">SOL 10x</span><span class="meta" data-i18n="riskMid">средний</span></div>
-        <div class="hist-item"><span class="dot" style="background:var(--green)"></span><span class="coin">BTC 3x</span><span class="meta" data-i18n="riskLow">низкий</span></div>
-      </div>
+      <div class="hist" id="histList"><div class="cs-msg" data-i18n="histEmpty">Пока пусто — сделай первый разбор.</div></div>
     </section>
 
     <!-- SETTINGS -->
@@ -463,7 +484,7 @@
           <span class="val"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
         </div>
       </div>
-      <p class="about" data-i18n="about">NoRekt — прототип. Разборы делаются вручную; авто-режим появится после набора проверенных примеров.</p>
+      <p class="about" data-i18n="about">NoRekt — оценка риска твоей позиции и обзор монеты.</p>
     </section>
 
     <!-- FAQ -->
@@ -523,7 +544,7 @@
         </div>
 
         <p style="font-size:11px;color:var(--muted);margin:0 0 16px;line-height:1.5;" id="depMinNote" data-i18n="depMin">Отправляй только выбранную монету в выбранной сети — иначе средства будут потеряны.</p>
-        <div class="disclaimer"><p data-i18n="depNote">Метку суммы и зачисление выдаёт сервер, привязывая платёж к твоему Telegram ID. В превью это демонстрация — баланс не меняется.</p></div>
+        <div class="disclaimer"><p data-i18n="depNote">Отправь ровно указанную сумму. Баланс пополнится автоматически после подтверждения сети.</p></div>
       </div>
     </section>
 
@@ -605,7 +626,7 @@ const I18N={
   leadView:"Выбери монету — получи обзор тренда, волатильность и ключевые уровни.",btnView:"Получить анализ ИИ",
   ovTrend:"Тренд",ovVol:"Волатильность",ovLevels:"Ключевые уровни",ovSum:"Резюме",
   ovDemoTrend:"[ИИ опишет текущий тренд и его силу]",ovDemoVol:"[ИИ оценит волатильность и риск резких движений]",ovDemoLevels:"[ИИ выделит ближайшие поддержки и сопротивления]",ovDemoSum:"[ИИ даст краткое резюме и на что обратить внимание]",
-  ovIntro:"Демонстрационный обзор {coin}. В рабочей версии ИИ разбирает монету по реальным рыночным данным.",ovNote:"Демо-обзор. Не является сигналом или советом покупать/продавать.",
+  ovIntro:"Обзор {coin} на основе рыночных данных.",ovNote:"Не является сигналом или советом покупать/продавать.",
   tvMsg:"график недоступен в превью — заработает на твоём хостинге или локально",liqAt:" Ликвидация около ${p}.",
   lblCoin:"Монета",lblLev:"Плечо",lblSize:"Маржа сделки $",lblBal:"Общий баланс $",lblStop:"Стоп-лосс",stopLbl:"Стоп установлен",
   lblTp:"Тейк-профит",tpLbl:"Тейк установлен",priceLab:"Стоимость разбора",btnCheck:"Проверить риск",
@@ -622,13 +643,15 @@ const I18N={
   depExactWarn:"Отправь ровно эту сумму — последние цифры это метка платежа, по ней бот узнаёт, что перевод твой. Другая сумма не зачислится автоматически.",
   depNoAddr:"Адрес для этой монеты ещё не настроен — добавь свой на бэкенде.",depEnterAmount:"Введи сумму больше нуля.",depPaid:"Я оплатил",depWaiting:"Платёж проверяется. После подтверждения сети баланс пополнится. Можешь сделать ещё одно пополнение.",
   freeOv:"бесплатных обзоров",freeRv:"бесплатных разборов",refH:"Пригласи друзей",refCopy:"Копировать",refInvited:"Приглашено",refText:"За каждого друга — бесплатный обзор монеты. Если он оплатит — тебе бесплатный разбор сделки.",
+  histEmpty:"Пока пусто — сделай первый разбор.",ovUnlockFree:"Открыть бесплатно",
+  refJoinedL:"зашли",refPaidL:"купили",notAdvice:"Не является финансовым советом.",
   ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 30 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 30 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
   setDeposit:"Депозит",usdtTag:"USDT",depBal:"Баланс USDT",depNetwork:"Сеть пополнения",depAddr:"Адрес для пополнения",depCopy:"Копировать",depCopied:"Скопировано",
   depMin:"Минимум 1 USDT. Отправляй только USDT в выбранной сети — иначе средства будут потеряны.",
-  depNote:"Прототип: адрес демонстрационный, реальные средства не принимаются. Приём депозита подключается на бэкенде при запуске.",
-  about:"NoRekt — прототип. Разборы делаются вручную; авто-режим появится после набора проверенных примеров.",
+  depNote:"Отправь ровно указанную сумму. Баланс пополнится автоматически после подтверждения сети.",
+  about:"NoRekt — оценка риска твоей позиции и обзор монеты.",
   navCheck:"Разбор",navProfile:"Профиль",navSettings:"Настройки",
   lvlHigh:"Высокий риск",lvlMid:"Средний риск",lvlLow:"Низкий риск",noStop:"без стопа",none:"нет",
   vHigh:"Под риском {risk}% депозита. {coin} {lev}x {stop} — позицию вынесет движением всего на {liq}%, это рядовой дневной фитиль. Это не сделка с риск-менеджментом, это ставка.",
@@ -650,7 +673,7 @@ const I18N={
   leadView:"Pick a coin — get an overview of trend, volatility and key levels.",btnView:"Get AI analysis",
   ovTrend:"Trend",ovVol:"Volatility",ovLevels:"Key levels",ovSum:"Summary",
   ovDemoTrend:"[AI will describe the current trend and its strength]",ovDemoVol:"[AI will assess volatility and the risk of sharp moves]",ovDemoLevels:"[AI will flag nearby support and resistance]",ovDemoSum:"[AI will give a short summary and what to watch]",
-  ovIntro:"Demo overview of {coin}. In the live version the AI analyzes the coin on real market data.",ovNote:"Demo overview. Not a signal or advice to buy/sell.",
+  ovIntro:"Overview of {coin} based on market data.",ovNote:"Not a signal or advice to buy/sell.",
   tvMsg:"chart unavailable in preview — works on your own hosting or locally",liqAt:" Liquidation around ${p}.",
   lblCoin:"Coin",lblLev:"Leverage",lblSize:"Trade margin $",lblBal:"Total balance $",lblStop:"Stop-loss",stopLbl:"Stop-loss set",
   lblTp:"Take-profit",tpLbl:"Take-profit set",priceLab:"Review price",btnCheck:"Check risk",
@@ -667,13 +690,15 @@ const I18N={
   depExactWarn:"Send exactly this amount — the last digits are a payment tag the bot uses to recognize your transfer. A different amount won't be credited automatically.",
   depNoAddr:"No address set for this coin yet — add yours on the backend.",depEnterAmount:"Enter an amount greater than zero.",depPaid:"I've paid",depWaiting:"Payment is being verified. Once the network confirms it, your balance updates. You can make another top-up.",
   freeOv:"free overviews",freeRv:"free reviews",refH:"Invite friends",refCopy:"Copy",refInvited:"Invited",refText:"A free coin overview for every friend. If they pay — you get a free trade review.",
+  histEmpty:"Nothing yet — run your first analysis.",ovUnlockFree:"Open for free",
+  refJoinedL:"joined",refPaidL:"purchased",notAdvice:"Not financial advice.",
   ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 30 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 30 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
   setDeposit:"Deposit",usdtTag:"USDT",depBal:"USDT balance",depNetwork:"Deposit network",depAddr:"Deposit address",depCopy:"Copy",depCopied:"Copied",
   depMin:"Minimum 1 USDT. Send only USDT on the selected network — otherwise funds will be lost.",
-  depNote:"Prototype: the address is a demo, real funds are not accepted. Deposit handling is wired up on the backend at launch.",
-  about:"NoRekt is a prototype. Reviews are done manually; auto mode comes after enough proven examples.",
+  depNote:"Send exactly the amount shown. Your balance updates automatically once the network confirms.",
+  about:"NoRekt — a risk read on your position and a coin overview.",
   navCheck:"Review",navProfile:"Profile",navSettings:"Settings",
   lvlHigh:"High risk",lvlMid:"Medium risk",lvlLow:"Low risk",noStop:"no stop",none:"no",
   vHigh:"{risk}% of your deposit is at risk. {coin} {lev}x {stop} — the position gets wiped by just a {liq}% move, an ordinary daily wick. This isn't a managed trade, it's a bet.",
@@ -695,7 +720,7 @@ let lang="en",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",s
 const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 const TG_USER = (TG && TG.initDataUnsafe && TG.initDataUnsafe.user) ? TG.initDataUnsafe.user : null;
 const TG_ID = TG_USER ? TG_USER.id : null;   // привязка всего к одному пользователю по Telegram ID (есть только внутри бота)
-if (TG) { try { TG.ready(); TG.expand(); } catch(e){} }
+if (TG) { try { TG.ready(); TG.expand(); if (typeof TG.requestFullscreen==="function") TG.requestFullscreen(); TG.setHeaderColor && TG.setHeaderColor("#0E1621"); } catch(e){} }
 
 // ── API ──
 const API_BASE = "https://norekt-server-production.up.railway.app/api";
@@ -713,11 +738,11 @@ async function apiCall(path, body){
   if(!r.ok) throw new Error("api_"+r.status);
   return r.json();
 }
-let freeOverviews=0, freeReviews=0, refLink=null, invitedCount=0;
+let freeOverviews=0, freeReviews=0, refLink=null, invitedCount=0, invitedPaid=0;
 function applyMe(me){
   balance = me.stars||0; usdtBalance = Number(me.usd_balance)||0;
   freeOverviews = me.free_overviews||0; freeReviews = me.free_reviews||0;
-  invitedCount = me.invited||0; if(me.ref_link) refLink = me.ref_link;
+  invitedCount = me.invited||0; invitedPaid = me.invited_paid||0; if(me.ref_link) refLink = me.ref_link;
   renderBalance(); renderReferral();
 }
 async function loadMe(){
@@ -753,7 +778,7 @@ function closeSheet(){document.getElementById("overlay").classList.remove("on");
 const TITLES={input:"navCheck",loading:"navCheck",verdict:"navCheck",overview:"navCheck",profile:"navProfile",settings:"navSettings",faq:"setFaq",deposit:"setDeposit",stars:"starsTitle"};
 function setHeader(){document.getElementById("hdrTitle").textContent= current==="input"?"NoRekt":I18N[lang][TITLES[current]];}
 function show(id){current=id;document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("s-"+id).classList.add("active");document.querySelector(".body").scrollTop=0;setHeader();if(id==="input")requestAnimationFrame(loadTV);if(id==="deposit"){const d=document.getElementById("depBalVal");if(d)d.textContent=usdtBalance.toFixed(2);document.getElementById("depStep1").style.display="block";document.getElementById("depStep2").style.display="none";document.getElementById("depReq").style.display="none";}}
-function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);}
+function navTo(id){const map={faq:"settings",deposit:"settings",stars:"input"};const keep=map[id]||id;["input","profile","settings"].forEach(n=>document.getElementById("n-"+n).classList.toggle("on",n===keep));show(id);if(id==="profile"){loadMe();loadHistory();}}
 
 function toggleTog(which,e){
   const el=document.getElementById(which==="stop"?"stopTog":"tpTog");
@@ -773,7 +798,11 @@ function renderBalance(){const bp=document.getElementById("balProfile");if(bp)bp
 }
 function renderReferral(){
   const l=document.getElementById("refLinkVal"); if(l&&refLink) l.textContent=refLink;
-  const c=document.getElementById("refCount"); if(c) c.textContent=invitedCount;
+  const j=document.getElementById("refJoined"); if(j) j.textContent=invitedCount;
+  const pd=document.getElementById("refPaid"); if(pd) pd.textContent=invitedPaid;
+  const num=document.getElementById("refArcNum"); if(num) num.textContent=invitedCount;
+  const arc=document.getElementById("refArc");
+  if(arc){ const C=2*Math.PI*48; const frac=invitedCount>0?(invitedPaid/invitedCount):0; arc.setAttribute("stroke-dasharray",(C*frac)+" "+C); }
 }
 function copyRef(btn){ if(!refLink)return; copyVal(btn, refLink); }
 
@@ -920,8 +949,9 @@ function renderVerdict(d){
   document.getElementById("verdictText").textContent=vt;
   const todos=level==="High"?t.tHigh:level==="Mid"?t.tMid:t.tLow;
   document.getElementById("todoList").innerHTML=todos.map(x=>"<li>"+x+"</li>").join("");
+  if(!d.__fromHistory) saveHistory("review", d.coin, level, d);
 }
-function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");show("overview");}
+function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");const ub=document.getElementById("ovUnlockBtn");if(ub)ub.textContent=(freeOverviews>0)?t.ovUnlockFree:t.ovUnlock;show("overview");saveHistory("overview",coin,null,{coin});}
 
 /* ---------- chart: TradingView advanced widget (pan/zoom, timeframes, all coins) ---------- */
 function loadTV(){
@@ -975,6 +1005,42 @@ function renderCoins(){
   }).join("");
 }
 function pickCoin(sym){document.getElementById("fCoin").value=sym;closeCoins();loadTV();}
+
+function tvFullscreen(){
+  const el=document.querySelector(".tv-wrap");
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+// ── history (server-backed) ──
+let lastLevel=null;
+async function saveHistory(kind, coin, level, payload){
+  if(!HAS_SERVER) return;
+  try{ await apiCall("/history/add", { kind, coin, level, payload }); }catch(e){}
+}
+async function loadHistory(){
+  const box=document.getElementById("histList");
+  if(!HAS_SERVER){ return; }   // preview: leave empty message
+  try{
+    const { items } = await apiCall("/history/list", {});
+    if(!items || !items.length){ box.innerHTML='<div class="cs-msg">'+I18N[lang].histEmpty+'</div>'; return; }
+    box.innerHTML = items.map((it,i)=>{
+      const p = typeof it.payload==="string" ? JSON.parse(it.payload) : it.payload;
+      window.__hist = window.__hist || {}; window.__hist[it.id]=Object.assign({kind:it.kind,coin:it.coin,level:it.level},p);
+      const isRev = it.kind==="review";
+      const col = it.level==="High"?"var(--red)":it.level==="Mid"?"var(--amber)":"var(--green)";
+      const label = (it.coin||"?") + (isRev? (p.lev?(" "+p.lev+"x"):"") : "");
+      const meta = isRev ? (it.level==="High"?I18N[lang].riskHigh:it.level==="Mid"?I18N[lang].riskMid:I18N[lang].riskLow) : I18N[lang].modeView;
+      return '<div class="hist-item" onclick="openHistory('+it.id+')"><span class="dot" style="background:'+(isRev?col:"var(--tg)")+'"></span><span class="coin">'+label+'</span><span class="meta">'+meta+'</span></div>';
+    }).join("");
+  }catch(e){ box.innerHTML='<div class="cs-msg">'+I18N[lang].histEmpty+'</div>'; }
+}
+function openHistory(id){
+  const it = window.__hist && window.__hist[id]; if(!it) return;
+  if(it.kind==="overview"){ document.getElementById("ovLocked").classList.add("unlocked"); document.getElementById("ovCoin").textContent=it.coin||""; document.getElementById("ovIntro").textContent=I18N[lang].ovIntro.replace("{coin}",it.coin||""); show("overview"); }
+  else { it.__fromHistory=true; renderVerdict(it); }
+}
 
 setSide("long");setMode("view");setTheme("dark");renderBalance();loadMe();
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>NoRekt — mini app</title>
 <script src="https://s3.tradingview.com/tv.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
     --bg:#0E1621; --surface:#17212B; --surface-2:#1D2A38; --line:#243140;
@@ -674,6 +675,33 @@ let lang="en",theme="dark",stopOn=false,tpOn=false,current="input",mode="plan",s
 const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 const TG_USER = (TG && TG.initDataUnsafe && TG.initDataUnsafe.user) ? TG.initDataUnsafe.user : null;
 const TG_ID = TG_USER ? TG_USER.id : null;   // привязка всего к одному пользователю по Telegram ID (есть только внутри бота)
+if (TG) { try { TG.ready(); TG.expand(); } catch(e){} }
+
+// ── API ──
+const API_BASE = "https://norekt-server-production.up.railway.app/api";
+const INIT_DATA = TG ? (TG.initData || "") : "";
+const HAS_SERVER = !!(TG && INIT_DATA);   // real mode only inside Telegram
+async function apiCall(path, body){
+  const r = await fetch(API_BASE+path, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "X-Init-Data": INIT_DATA },
+    body: JSON.stringify(body||{})
+  });
+  if(!r.ok) throw new Error("api_"+r.status);
+  return r.json();
+}
+async function loadMe(){
+  if(!HAS_SERVER) return;                  // browser preview -> keep demo values
+  try{
+    const me = await apiCall("/me", {});
+    balance = me.stars||0; usdtBalance = Number(me.usd_balance)||0;
+    if(me.name){ const el=document.getElementById("pnameEl"); if(el) el.textContent=me.name; }
+    if(me.avatar_url){ const a=document.getElementById("avatarEl"); if(a){ a.textContent=""; a.style.backgroundImage="url("+me.avatar_url+")"; } }
+    else if(me.name){ const a=document.getElementById("avatarEl"); if(a && !a.style.backgroundImage) a.textContent=me.name.charAt(0).toUpperCase(); }
+    if(me.username){ const h=document.querySelector(".phandle"); if(h) h.textContent="@"+me.username; }
+    renderBalance();
+  }catch(e){ console.warn("loadMe failed", e); }
+}
 
 function applyLang(){
   const t=I18N[lang];
@@ -723,10 +751,20 @@ function openPay(payload){
 function closePay(){document.getElementById("payOverlay").classList.remove("on");}
 
 // Step 2: route by method
-function payWith(method){
+async function payWith(method){
   closePay();const p=pendingPay;
   backScreen = (p&&p.kind==="overview")?"overview":"input";
   if(method==="stars"){ setStarsScreen(p.cs); show("stars"); return; }
+  // USDT: charge internal balance via server
+  if(HAS_SERVER){
+    try{
+      const res = await apiCall("/charge/usd", { kind: p.kind });
+      if(res.ok){ usdtBalance = Number(res.balances.usd_balance)||0; renderBalance(); completePay(); }
+      else { show("deposit"); }   // not enough -> top up
+    }catch(e){ show("deposit"); }
+    return;
+  }
+  // browser preview fallback
   if(usdtBalance>=p.cu){ usdtBalance-=p.cu; renderBalance(); completePay(); }
   else { show("deposit"); }
 }
@@ -736,20 +774,20 @@ function setStarsScreen(cost){
   document.getElementById("starsBtn").textContent=I18N[lang].starsPay.replace("80",cost);
 }
 
-// Stars payment via Telegram WebApp (real inside the bot; simulated in browser preview)
-function payStars(e){
+// Stars payment: server creates the XTR invoice link, WebApp opens it.
+async function payStars(e){
   ripple(e);const t=I18N[lang],note=document.getElementById("starsNote");
-  if(TG && typeof TG.openInvoice==="function"){
+  if(HAS_SERVER && typeof TG.openInvoice==="function"){
     note.textContent=t.starsBot;
-    // In production your bot/server creates the invoice link (currency XTR, amount = pendingPay.cs) tied to TG_ID,
-    // then the WebApp opens it. The link must come from your backend.
     try{
-      // TG.openInvoice(invoiceLinkFromYourServer, (status)=>{ if(status==="paid") completePay(); });
-      note.textContent=t.starsPreview;
-      setTimeout(completePay,900);
-    }catch(err){ note.textContent=t.starsPreview; setTimeout(completePay,900); }
+      const { link } = await apiCall("/stars/invoice", { kind: pendingPay?pendingPay.kind:"review" });
+      TG.openInvoice(link, async (status)=>{
+        if(status==="paid"){ completePay(); }
+        else { note.textContent=""; }
+      });
+    }catch(err){ note.textContent=t.starsPreview; }
   } else {
-    note.textContent=t.starsPreview;
+    note.textContent=t.starsPreview;   // browser preview: simulate
     setTimeout(completePay,900);
   }
 }
@@ -852,8 +890,8 @@ let dbT=null;
 document.getElementById("fCoin").addEventListener("input",()=>{clearTimeout(dbT);dbT=setTimeout(loadTV,650);});
 
 /* ---------- profile: editable avatar + name ---------- */
-function changeAvatar(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const a=document.getElementById("avatarEl");a.textContent="";a.style.backgroundImage="url("+ev.target.result+")";};r.readAsDataURL(f);}
-function editName(){const el=document.getElementById("pnameEl");const v=prompt(I18N[lang].namePrompt,el.textContent.trim());if(v&&v.trim()){el.textContent=v.trim();const a=document.getElementById("avatarEl");if(!a.style.backgroundImage)a.textContent=v.trim().charAt(0).toUpperCase();}}
+function changeAvatar(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const a=document.getElementById("avatarEl");a.textContent="";a.style.backgroundImage="url("+ev.target.result+")";if(HAS_SERVER){apiCall("/profile",{avatar_url:ev.target.result}).catch(()=>{});}};r.readAsDataURL(f);}
+function editName(){const el=document.getElementById("pnameEl");const v=prompt(I18N[lang].namePrompt,el.textContent.trim());if(v&&v.trim()){el.textContent=v.trim();const a=document.getElementById("avatarEl");if(!a.style.backgroundImage)a.textContent=v.trim().charAt(0).toUpperCase();if(HAS_SERVER){apiCall("/profile",{name:v.trim()}).catch(()=>{});}}}
 
 /* ---------- coin selector: live market data (CoinGecko) ---------- */
 let coinData=[],coinTab="cap",coinLoaded=false;
@@ -884,20 +922,18 @@ function renderCoins(){
 }
 function pickCoin(sym){document.getElementById("fCoin").value=sym;closeCoins();loadTV();}
 
-setSide("long");setMode("view");setTheme("dark");renderBalance();
+setSide("long");setMode("view");setTheme("dark");renderBalance();loadMe();
 
-/* deposit: demo addresses per network (prototype only, not real wallets) */
-// EVM address (BSC / Arbitrum / etc.) and TRON address provided by user
+/* deposit config: [label, address, serverNetworkKey] */
 const ADDR_EVM="0xd6207b9eeaa559699dcf62272ed416881bba8a27";
 const ADDR_TRON="TZELSNUrT1vkQJcWYW8vKj8r53HrQ4cFaZ";
-// coin -> available networks; addr=null means address not configured yet (do NOT invent one)
 const PAY_COINS={
-  BTC:{decimals:8,nets:[["Bitcoin",null]]},
-  USDT:{decimals:6,nets:[["TRC20",ADDR_TRON],["BSC (BEP20)",ADDR_EVM],["Arbitrum",ADDR_EVM]]},
-  USDC:{decimals:6,nets:[["BSC (BEP20)",ADDR_EVM],["Arbitrum",ADDR_EVM]]},
-  ETH:{decimals:6,nets:[["Arbitrum",ADDR_EVM],["BSC (BEP20)",ADDR_EVM]]}
+  BTC:{decimals:8,nets:[["Bitcoin",null,null]]},
+  USDT:{decimals:6,nets:[["TRC20",ADDR_TRON,"tron"],["BSC (BEP20)",ADDR_EVM,"bsc"],["Arbitrum",ADDR_EVM,"arbitrum"]]},
+  USDC:{decimals:6,nets:[["BSC (BEP20)",ADDR_EVM,"bsc"],["Arbitrum",ADDR_EVM,"arbitrum"]]},
+  ETH:{decimals:6,nets:[["Arbitrum",ADDR_EVM,"arbitrum"],["BSC (BEP20)",ADDR_EVM,"bsc"]]}
 };
-let payCoin="USDT",netIdx=0;
+let payCoin="USDT",netIdx=0,depId=null;
 
 function pickPayCoin(c){
   payCoin=c;netIdx=0;
@@ -920,12 +956,27 @@ function fillAddr(){const addr=PAY_COINS[payCoin].nets[netIdx][1];document.getEl
 
 // unique-amount tag (step 0.001, added on top): bot/server assigns it so two users never collide.
 // In production the tag is generated server-side, keyed to your Telegram ID; if a tag is taken, the next free one is used.
-function genRequisites(e){
+async function genRequisites(e){
   ripple(e);
   const amt=parseFloat(document.getElementById("depAmount").value);
   if(!amt||amt<=0){alert(I18N[lang].depEnterAmount);return;}
-  const tag=Math.floor(Math.random()*999)+1;     // 1..999  -> 0.001 .. 0.999
-  const final=amt + tag/1000;                     // added on top, step 0.001
+  const net=PAY_COINS[payCoin].nets[netIdx];
+  const key=net[2];
+  if(!net[1]){ alert(I18N[lang].depNoAddr); return; }   // e.g. BTC not configured
+
+  if(HAS_SERVER && key){
+    try{
+      const d = await apiCall("/deposit/create", { coin: payCoin, network: key, amount: amt });
+      depId = d.id;
+      document.getElementById("depReqAmount").textContent = Number(d.expected_amount).toFixed(3)+" "+payCoin;
+      document.getElementById("depAddrVal").textContent = d.address;
+      document.getElementById("depReq").style.display="block";
+      return;
+    }catch(err){ /* fall back to preview below */ }
+  }
+  // browser preview fallback (no server): local tag
+  const tag=Math.floor(Math.random()*999)+1;
+  const final=amt + tag/1000;
   document.getElementById("depReqAmount").textContent=final.toFixed(3)+" "+payCoin;
   fillAddr();
   document.getElementById("depReq").style.display="block";
@@ -933,9 +984,11 @@ function genRequisites(e){
 function copyVal(btn,val){const done=()=>{const o=btn.textContent;btn.textContent=I18N[lang].depCopied;setTimeout(()=>btn.textContent=I18N[lang].depCopy,1400);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(val).then(done).catch(done);}else done();}
 // "I've paid": in production the server confirms the on-chain payment by the tagged amount and credits the balance.
 // Here we just acknowledge and reset the flow to the start so another top-up can be made.
-function depDone(e){
+async function depDone(e){
   ripple(e);
   alert(I18N[lang].depWaiting);
+  if(HAS_SERVER) await loadMe();   // watcher credits automatically once the tx is seen; refresh balance
+  depId=null;
   document.getElementById("depAmount").value="";
   document.getElementById("depReq").style.display="none";
   document.getElementById("depStep2").style.display="none";

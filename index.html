@@ -255,8 +255,10 @@
   .tv-wrap iframe{border-radius:14px;}
   .tv-full{position:absolute;top:8px;right:8px;z-index:3;width:30px;height:30px;border:none;border-radius:8px;background:rgba(0,0,0,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .tv-full svg{width:16px;height:16px;}
-  .tv-wrap:fullscreen{height:100vh;border-radius:0;}
-  .tv-wrap:fullscreen #tvChart{height:100vh;}
+  .tv-wrap.expanded{position:fixed;inset:0;z-index:300;height:100vh !important;height:100dvh !important;width:100vw;border-radius:0;margin:0;background:var(--surface);padding-top:env(safe-area-inset-top,0px);}
+  .tv-wrap.expanded #tvChart{height:100% !important;}
+  .tv-close{display:none;}
+  .tv-wrap.expanded .tv-close{display:flex;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:302;width:36px;height:36px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:18px;cursor:pointer;align-items:center;justify-content:center;}
   .tv-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--hint);text-align:center;padding:0 18px;line-height:1.5;z-index:1;}
   .collapse{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface-2);}
   .collapse-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;font-size:14px;font-weight:600;font-family:var(--mono);letter-spacing:.04em;}
@@ -301,7 +303,7 @@
         <button class="coin-open" onclick="openCoins()" aria-label="coins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
       </div>
 
-      <div class="tv-wrap"><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
+      <div class="tv-wrap"><button class="tv-close" onclick="tvFullscreen()" aria-label="close">✕</button><div id="tvChart" style="height:100%"></div><div class="tv-msg" id="tvMsg" style="display:none"></div></div>
       <button class="btn-ghost" style="margin:-6px 0 14px;height:38px;font-size:13px;" onclick="tvFullscreen()" data-i18n="chartFull">⛶ Развернуть график</button>
 
       <div id="inFields" style="display:none">
@@ -915,7 +917,29 @@ function completePay(){
   if(p&&p.kind==="overview"){ revealOverview(); return; }
   show("loading"); if(p&&p.data) setTimeout(()=>renderVerdict(p.data),1200);
 }
-function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); show("overview"); }
+function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); loadAiOverview(); show("overview"); }
+async function loadAiOverview(){
+  if(!HAS_SERVER) return;
+  const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
+  const box=document.getElementById("ovLocked");
+  const secs=box.querySelectorAll(".verdict-box p");
+  secs.forEach(p=>p.textContent="…");
+  try{
+    const r=await apiCall("/ai/overview",{coin,lang});
+    if(r.ok && r.text){ fillAiSections(r.text); }
+  }catch(e){ secs.forEach(p=>p.textContent="—"); }
+}
+// split AI text into the 4 overview sections by simple heading detection
+function fillAiSections(text){
+  const box=document.getElementById("ovLocked");
+  const ps=box.querySelectorAll(".verdict-box p");
+  // try to split on the section keywords; fallback: whole text in first, rest blank
+  const parts=text.split(/\n(?=[-•]?\s*(?:Trend|Тренд|Volatility|Волатильн|Key levels|Ключевые|Recommendation|Рекоменд))/i);
+  if(ps[0]) ps[0].textContent=(parts[0]||text).replace(/^[-•\s]*(Trend|Тренд)[:\s-]*/i,"").trim();
+  if(ps[1]) ps[1].textContent=(parts[1]||"").replace(/^[-•\s]*(Volatility|Волатильн\w*)[:\s-]*/i,"").trim()||"—";
+  if(ps[2]) ps[2].textContent=(parts[2]||"").replace(/^[-•\s]*(Key levels|Ключевые\w*)[:\s-]*/i,"").trim()||"—";
+  if(ps[3]) ps[3].textContent=(parts[3]||"").replace(/^[-•\s]*(Recommendation|Рекоменд\w*)[:\s-]*/i,"").trim()||"—";
+}
 async function unlockOverview(){
   if(HAS_SERVER){
     try{
@@ -965,7 +989,7 @@ function runCheck(e){
   let liqPrice=null;
   if(entry>0){ liqPrice = side==="long" ? entry*(1-liqMove/100) : entry*(1+liqMove/100); }
 
-  tryFreeThenPayReview({coin,lev,bankPct,liqMove,riskPct,score,rr,liqPrice});
+  tryFreeThenPayReview({coin,lev,bankPct,liqMove,riskPct,score,rr,liqPrice,side,entry,margin,balance:bal,stopPct,tpPct,__live:true});
 }
 async function tryFreeThenPayReview(data){
   if(HAS_SERVER){
@@ -1000,6 +1024,17 @@ function renderVerdict(d){
   const todos=level==="High"?t.tHigh:level==="Mid"?t.tMid:t.tLow;
   document.getElementById("todoList").innerHTML=todos.map(x=>"<li>"+x+"</li>").join("");
   if(!d.__fromHistory) saveHistory("review", d.coin, level, d);
+  if(d.__live && HAS_SERVER) loadAiReview(d);
+  else if(d.ai){ document.getElementById("verdictText").textContent=d.ai; document.getElementById("todoList").innerHTML=""; }
+}
+async function loadAiReview(d){
+  const vt=document.getElementById("verdictText"), td=document.getElementById("todoList");
+  const prevV=vt.textContent; vt.textContent="…"; td.innerHTML="";
+  try{
+    const r=await apiCall("/ai/review",{coin:d.coin,side:d.side,lev:d.lev,entry:d.entry,margin:d.margin,balance:d.balance,stopPct:d.stopPct,tpPct:d.tpPct,lang});
+    if(r.ok && r.text){ vt.textContent=r.text; d.ai=r.text; }
+    else { vt.textContent=prevV; }
+  }catch(e){ vt.textContent=prevV; }
 }
 function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");const ub=document.getElementById("ovUnlockBtn");if(ub)ub.textContent=(freeOverviews>0)?t.ovUnlockFree:t.ovUnlock;show("overview");saveHistory("overview",coin,null,{coin});}
 
@@ -1158,10 +1193,12 @@ async function sendBroadcast(e){
   }catch(err){ document.getElementById("bcResult").textContent="Ошибка отправки."; }
 }
 
-function tvFullscreen(){  const el=document.querySelector(".tv-wrap");
-  if(document.fullscreenElement){ document.exitFullscreen(); return; }
-  if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+function tvFullscreen(){
+  const el=document.querySelector(".tv-wrap");
+  el.classList.toggle("expanded");
+  document.body.classList.toggle("chart-open", el.classList.contains("expanded"));
+  // nudge the TradingView widget to refit its new size
+  setTimeout(()=>window.dispatchEvent(new Event("resize")), 60);
 }
 
 // ── history (server-backed) ──
@@ -1246,7 +1283,7 @@ async function genRequisites(e){
     }catch(err){ /* fall back to preview below */ }
   }
   // browser preview fallback (no server): local tag
-  const tag=Math.floor(Math.random()*999)+1;
+  const tag=Math.floor(Math.random()*99)+1;   // 1..99 -> surcharge 0.001..0.099 (2.0xx)
   const final=amt + tag/1000;
   document.getElementById("depReqAmount").textContent=final.toFixed(3)+" "+payCoin;
   fillAddr();

@@ -102,6 +102,15 @@
   .verdict-box p.expanded{display:block;}
   .more-btn{background:none;border:none;color:var(--tg);font-size:12px;font-weight:600;cursor:pointer;padding:6px 0 0;}
   .verdict-box p{white-space:pre-wrap;}
+  .ai-wait-overlay{position:absolute;inset:0;z-index:400;display:none;align-items:center;justify-content:center;
+    background:rgba(10,15,22,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:24px;}
+  .ai-wait-overlay.on{display:flex;}
+  .ai-wait-cloud{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px 26px;
+    text-align:center;max-width:280px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .ai-wait-spin{width:40px;height:40px;border:3px solid var(--line);border-top-color:var(--tg);border-radius:50%;
+    animation:spin .8s linear infinite;margin:0 auto 16px;}
+  .ai-wait-title{font-size:15px;font-weight:600;margin:0 0 6px;color:var(--txt);}
+  .ai-wait-sub{font-size:13px;color:var(--muted);margin:0;}
   .lock-wrap.unlocked .locked-content{filter:none;pointer-events:auto;}
   .lock-over{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
     text-align:center;padding:0 24px;background:linear-gradient(180deg,transparent,var(--bg) 70%);}
@@ -390,13 +399,13 @@
     <section class="screen" id="s-overview">
       <p class="lead" style="margin-bottom:4px"><span id="ovCoin" style="font-family:var(--mono);font-weight:600;font-size:18px;color:var(--txt)">BTC</span></p>
       <p class="lead" id="ovIntro" style="margin-top:0"></p>
-      <div class="verdict-box"><h3 data-i18n="ovTrend">Тренд</h3><p data-i18n="ovDemoTrend">[ИИ опишет текущий тренд и его силу]</p></div>
-      <div class="verdict-box"><h3 data-i18n="ovVol">Волатильность</h3><p data-i18n="ovDemoVol">[ИИ оценит волатильность и риск резких движений]</p></div>
+      <div class="verdict-box"><h3 data-i18n="ovTrend">Тренд</h3><p data-i18n="ovDemoTrend">[Трейдер опишет текущий тренд и его силу]</p></div>
+      <div class="verdict-box"><h3 data-i18n="ovVol">Волатильность</h3><p data-i18n="ovDemoVol">[Трейдер оценит волатильность и риск резких движений]</p></div>
 
       <div class="lock-wrap" id="ovLocked">
         <div class="locked-content">
-          <div class="verdict-box"><h3 data-i18n="ovLevels">Ключевые уровни</h3><p data-i18n="ovDemoLevels">[ИИ выделит ближайшие поддержки и сопротивления]</p></div>
-          <div class="verdict-box"><h3 data-i18n="ovSum">Резюме</h3><p data-i18n="ovDemoSum">[ИИ даст краткое резюме и на что обратить внимание]</p></div>
+          <div class="verdict-box"><h3 data-i18n="ovLevels">Ключевые уровни</h3><p data-i18n="ovDemoLevels">[Трейдер выделит ближайшие поддержки и сопротивления]</p></div>
+          <div class="verdict-box"><h3 data-i18n="ovSum">Резюме</h3><p data-i18n="ovDemoSum">[Трейдер даст краткое резюме и на что обратить внимание]</p></div>
         </div>
         <div class="lock-over">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px;height:26px;color:var(--tg)"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -622,6 +631,15 @@
     <button id="n-settings" onclick="navTo('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 6 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 18 4.6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H22a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="navSettings">Настройки</span></button>
   </div>
 
+  <!-- blocking AI wait popup -->
+  <div class="ai-wait-overlay" id="aiWaitOverlay">
+    <div class="ai-wait-cloud">
+      <div class="ai-wait-spin"></div>
+      <p class="ai-wait-title" data-i18n="aiWaitTitle">Трейдер анализирует график</p>
+      <p class="ai-wait-sub" data-i18n="aiWaitSub">Подожди 15–20 секунд…</p>
+    </div>
+  </div>
+
   <!-- coin selector -->
   <div class="coin-overlay" id="coinOverlay">
     <div class="coin-sheet">
@@ -676,9 +694,9 @@
 const I18N={
  ru:{hdrSub:"",leadPlan:"Оцени риск сделки до входа — сколько депозита ты реально поставишь.",leadIn:"Разбор твоей открытой позиции — насколько ты сделал правильный выбор.",
   modePlan:"Сделка",modeIn:"В сделке",modeView:"Обзор",lblSide:"Направление",sideLong:"Лонг",sideShort:"Шорт",lblEntry:"Точка входа $",btnCheckIn:"Разобрать позицию",
-  leadView:"Выбери монету — получи обзор тренда, волатильность и ключевые уровни.",btnView:"Получить анализ ИИ",
+  leadView:"Выбери монету — получи обзор тренда, волатильность и ключевые уровни.",btnView:"Получить анализ",
   ovTrend:"Тренд",ovVol:"Волатильность",ovLevels:"Ключевые уровни",ovSum:"Резюме",
-  ovDemoTrend:"[ИИ опишет текущий тренд и его силу]",ovDemoVol:"[ИИ оценит волатильность и риск резких движений]",ovDemoLevels:"[ИИ выделит ближайшие поддержки и сопротивления]",ovDemoSum:"[ИИ даст краткое резюме и на что обратить внимание]",
+  ovDemoTrend:"[Трейдер опишет текущий тренд и его силу]",ovDemoVol:"[Трейдер оценит волатильность и риск резких движений]",ovDemoLevels:"[Трейдер выделит ближайшие поддержки и сопротивления]",ovDemoSum:"[Трейдер даст краткое резюме и на что обратить внимание]",
   ovIntro:"Обзор {coin} на основе рыночных данных.",ovNote:"Не является сигналом или советом покупать/продавать.",
   tvMsg:"график недоступен в превью — заработает на твоём хостинге или локально",liqAt:" Ликвидация около ${p}.",
   lblCoin:"Монета",lblLev:"Плечо",lblSize:"Маржа сделки $",lblBal:"Общий баланс $",lblStop:"Стоп-лосс",stopLbl:"Стоп установлен",
@@ -699,7 +717,7 @@ const I18N={
   histEmpty:"Пока пусто — сделай первый разбор.",ovUnlockFree:"Открыть бесплатно",
   refJoinedL:"зашли",refPaidL:"купили",notAdvice:"Не является финансовым советом.",
   chartFull:"⛶ Развернуть график",
-  aiWait:"ИИ анализирует график… Это займёт 15–20 секунд, подожди.",showMore:"Показать полностью",showLess:"Свернуть",
+  aiWait:"Трейдер анализирует…",showMore:"Показать полностью",showLess:"Свернуть",aiWaitTitle:"Трейдер анализирует график",aiWaitSub:"Подожди 15–20 секунд…",
   ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 40 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 40 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
@@ -718,16 +736,16 @@ const I18N={
   tLow:["Держи дисциплину — это рабочая конфигурация.","Не наращивай риск на эмоциях.","Фиксируй, что сработало, для следующих сделок."],
   faqIntro:"Коротко о том, что делает бот и чего он не делает.",
   faq:[["Что делает этот бот?","Анализирует риск твоей открытой позиции — маржу, плечо, стоп, тейк и расстояние до ликвидации — и даёт трезвую оценку, насколько ты близко к потере. Он не предсказывает цену."],
-       ["Откуда бот берёт анализ?","Информацию даёт ИИ, обученный на опыте множества топ-трейдеров — он знает рынок до мелочей и разбирает позицию так, как это сделал бы опытный трейдер."],
+       ["Откуда бот берёт анализ?","Разбор строит опытный трейдер-алгоритм, вобравший методики множества топ-трейдеров — он знает рынок до мелочей и разбирает позицию так, как это сделал бы профессионал."],
        ["Как считается риск?","По доле депозита под риском: сколько ты реально теряешь, если позицию вынесет. Учитывается плечо, наличие и расстояние стопа, объём к балансу и буфер до ликвидации."],
        ["Это сигналы или советы покупать?","Нет. Бот не говорит, что покупать или продавать, и не даёт инвестиционных или финансовых советов."],
        ["Кто отвечает за мои сделки?","Только ты. Это вспомогательный инструмент для твоего собственного решения, а не рекомендация."]],
   disclaimer:"NoRekt не является финансовым, инвестиционным или торговым советником. Все оценки носят справочный характер и могут быть неточными. Решения о сделках ты принимаешь самостоятельно и несёшь полную ответственность за свои действия и возможные потери. Торговля с плечом сопряжена с высоким риском потери средств."},
  en:{hdrSub:"",leadPlan:"Size up a trade before you enter — how much of your deposit you'd really put on the line.",leadIn:"A read on your open position — how good your choice really was.",
   modePlan:"Trade",modeIn:"In trade",modeView:"View",lblSide:"Direction",sideLong:"Long",sideShort:"Short",lblEntry:"Entry point $",btnCheckIn:"Analyze position",
-  leadView:"Pick a coin — get an overview of trend, volatility and key levels.",btnView:"Get AI analysis",
+  leadView:"Pick a coin — get an overview of trend, volatility and key levels.",btnView:"Get analysis",
   ovTrend:"Trend",ovVol:"Volatility",ovLevels:"Key levels",ovSum:"Summary",
-  ovDemoTrend:"[AI will describe the current trend and its strength]",ovDemoVol:"[AI will assess volatility and the risk of sharp moves]",ovDemoLevels:"[AI will flag nearby support and resistance]",ovDemoSum:"[AI will give a short summary and what to watch]",
+  ovDemoTrend:"[Trader will describe the current trend and its strength]",ovDemoVol:"[Trader will assess volatility and the risk of sharp moves]",ovDemoLevels:"[Trader will flag nearby support and resistance]",ovDemoSum:"[Trader will give a short summary and what to watch]",
   ovIntro:"Overview of {coin} based on market data.",ovNote:"Not a signal or advice to buy/sell.",
   tvMsg:"chart unavailable in preview — works on your own hosting or locally",liqAt:" Liquidation around ${p}.",
   lblCoin:"Coin",lblLev:"Leverage",lblSize:"Trade margin $",lblBal:"Total balance $",lblStop:"Stop-loss",stopLbl:"Stop-loss set",
@@ -748,7 +766,7 @@ const I18N={
   histEmpty:"Nothing yet — run your first analysis.",ovUnlockFree:"Open for free",
   refJoinedL:"joined",refPaidL:"purchased",notAdvice:"Not financial advice.",
   chartFull:"⛶ Fullscreen chart",
-  aiWait:"AI is analyzing the chart… This takes 15–20 seconds, please wait.",showMore:"Show more",showLess:"Show less",
+  aiWait:"Trader is analyzing…",showMore:"Show more",showLess:"Show less",aiWaitTitle:"Trader is analyzing the chart",aiWaitSub:"Please wait 15–20 seconds…",
   ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 40 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 40 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
@@ -767,7 +785,7 @@ const I18N={
   tLow:["Keep the discipline — this is a working setup.","Don't add risk on emotion.","Note what worked for next trades."],
   faqIntro:"A quick note on what the bot does and doesn't do.",
   faq:[["What does this bot do?","It analyzes the risk of your open position — margin, leverage, stop, take-profit and distance to liquidation — and gives a sober read on how close you are to a loss. It does not predict price."],
-       ["Where does the analysis come from?","The insight comes from an AI trained on the experience of many top traders — it knows the market down to the details and reviews a position the way a seasoned trader would."],
+       ["Where does the analysis come from?","The analysis is built by a trader-algorithm shaped by the methods of many top traders — it knows the market in detail and reviews a position the way a professional would."],
        ["How is risk calculated?","By share of deposit at risk: how much you actually lose if the position is wiped. It factors in leverage, whether a stop is set and how far, size vs balance, and the buffer to liquidation."],
        ["Are these signals or buy advice?","No. The bot doesn't tell you what to buy or sell and gives no investment or financial advice."],
        ["Who's responsible for my trades?","Only you. It's a helper tool for your own decision, not a recommendation."]],
@@ -944,32 +962,45 @@ function setExpandable(p, text){
     p.parentElement.appendChild(btn);
   }
 }
+function showAiWait(){ document.getElementById("aiWaitOverlay").classList.add("on"); }
+function hideAiWait(){ document.getElementById("aiWaitOverlay").classList.remove("on"); }
+
 async function loadAiOverview(){
   if(!HAS_SERVER) return;
   const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
   const box=document.getElementById("ovLocked");
   const secs=box.querySelectorAll(".verdict-box p");
-  secs.forEach((p,i)=>p.textContent = i===0 ? I18N[lang].aiWait : "…");
+  secs.forEach(p=>p.textContent="…");
+  showAiWait();
   try{
     const r=await apiCall("/ai/overview",{coin,lang});
     if(r.ok && r.text){ fillAiSections(r.text); }
     else { secs.forEach(p=>p.textContent="—"); }
   }catch(e){ secs.forEach(p=>p.textContent="—"); }
+  finally{ hideAiWait(); }
 }
-// split AI text by [TREND] [VOLATILITY] [LEVELS] [RECOMMENDATION] markers
+// robust splitter: handles [TREND] markers, ### Trend markdown, or keyword lines
 function fillAiSections(text){
   const box=document.getElementById("ovLocked");
   const ps=box.querySelectorAll(".verdict-box p");
-  function grab(tag,next){
-    const re=new RegExp("\\["+tag+"\\]([\\s\\S]*?)(?=\\[(?:"+next+")\\]|$)","i");
-    const m=text.match(re); return m ? m[1].trim() : "";
-  }
+  const keys=[
+    {tag:"TREND", kw:"Trend|Тренд"},
+    {tag:"VOLATILITY", kw:"Volatility|Волатильн\\w*"},
+    {tag:"LEVELS", kw:"Levels|Key levels|Уровни|Ключевые\\w*"},
+    {tag:"RECOMMENDATION", kw:"Recommendation|Рекоменд\\w*"}
+  ];
+  // normalize: turn "### Trend", "**Trend**", "Trend:" into "[TREND]" markers
+  let t="\n"+text+"\n";
+  keys.forEach(k=>{
+    const re=new RegExp("\\n\\s*(?:#+\\s*|\\*+\\s*)?\\[?\\s*(?:"+k.kw+")\\s*\\]?\\s*[:\\-]?\\s*\\**\\s*(?=\\n|[A-ZА-Я])","gi");
+    t=t.replace(re, "\n["+k.tag+"] ");
+  });
+  function grab(tag,next){ const re=new RegExp("\\["+tag+"\\]([\\s\\S]*?)(?=\\[(?:"+next+")\\]|$)","i"); const m=t.match(re); return m?m[1].trim():""; }
   const trend=grab("TREND","VOLATILITY|LEVELS|RECOMMENDATION");
   const vol=grab("VOLATILITY","LEVELS|RECOMMENDATION");
   const lvl=grab("LEVELS","RECOMMENDATION");
   const rec=grab("RECOMMENDATION","$");
-  // fallback: if markers missing, put whole text in first block
-  if(!trend && !vol && !lvl && !rec){ if(ps[0]) setExpandable(ps[0], text); if(ps[1])ps[1].textContent=""; if(ps[2])ps[2].textContent=""; if(ps[3])ps[3].textContent=""; return; }
+  if(!trend && !vol && !lvl && !rec){ if(ps[0]) setExpandable(ps[0], text); [1,2,3].forEach(i=>{if(ps[i])ps[i].textContent="—";}); return; }
   if(ps[0]) setExpandable(ps[0], trend||"—");
   if(ps[1]) setExpandable(ps[1], vol||"—");
   if(ps[2]) setExpandable(ps[2], lvl||"—");
@@ -1064,12 +1095,14 @@ function renderVerdict(d){
 }
 async function loadAiReview(d){
   const vt=document.getElementById("verdictText"), td=document.getElementById("todoList");
-  const prevV=vt.textContent; vt.textContent=I18N[lang].aiWait; td.innerHTML="";
+  const prevV=vt.textContent; vt.textContent="…"; td.innerHTML="";
+  showAiWait();
   try{
     const r=await apiCall("/ai/review",{coin:d.coin,side:d.side,lev:d.lev,entry:d.entry,margin:d.margin,balance:d.balance,stopPct:d.stopPct,tpPct:d.tpPct,lang});
     if(r.ok && r.text){ setExpandable(vt, r.text); d.ai=r.text; }
     else { vt.textContent=prevV; }
   }catch(e){ vt.textContent=prevV; }
+  finally{ hideAiWait(); }
 }
 function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");const ub=document.getElementById("ovUnlockBtn");if(ub)ub.textContent=(freeOverviews>0)?t.ovUnlockFree:t.ovUnlock;show("overview");saveHistory("overview",coin,null,{coin});}
 

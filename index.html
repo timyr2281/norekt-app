@@ -101,6 +101,7 @@
   .verdict-box p.clamped{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   .verdict-box p.expanded{display:block;}
   .more-btn{background:none;border:none;color:var(--tg);font-size:12px;font-weight:600;cursor:pointer;padding:6px 0 0;}
+  .hist-item.hist-hidden{display:none;}
   .verdict-box p{white-space:pre-wrap;}
   .ai-wait-overlay{position:absolute;inset:0;z-index:400;display:none;align-items:center;justify-content:center;
     background:rgba(10,15,22,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:24px;}
@@ -568,7 +569,6 @@
       <div id="depStep1">
         <label class="field-label" data-i18n="depPickCoin">Чем оплатить</label>
         <div class="coin-grid">
-          <button class="coin-card" onclick="pickPayCoin('BTC')"><span class="cc-sym">BTC</span><span class="cc-name">Bitcoin</span></button>
           <button class="coin-card" onclick="pickPayCoin('USDT')"><span class="cc-sym">USDT</span><span class="cc-name">Tether</span></button>
           <button class="coin-card" onclick="pickPayCoin('USDC')"><span class="cc-sym">USDC</span><span class="cc-name">USD Coin</span></button>
           <button class="coin-card" onclick="pickPayCoin('ETH')"><span class="cc-sym">ETH</span><span class="cc-name">Ethereum</span></button>
@@ -717,7 +717,7 @@ const I18N={
   histEmpty:"Пока пусто — сделай первый разбор.",ovUnlockFree:"Открыть бесплатно",
   refJoinedL:"зашли",refPaidL:"купили",notAdvice:"Не является финансовым советом.",
   chartFull:"⛶ Развернуть график",
-  aiWait:"Трейдер анализирует…",showMore:"Показать полностью",showLess:"Свернуть",aiWaitTitle:"Трейдер анализирует график",aiWaitSub:"Подожди 15–20 секунд…",
+  aiWait:"Трейдер анализирует…",histMore:"Показать ещё",showMore:"Показать полностью",showLess:"Свернуть",aiWaitTitle:"Трейдер анализирует график",aiWaitSub:"Подожди 15–20 секунд…",
   ovLockTxt:"Открой полный обзор — ключевые уровни и резюме",ovUnlock:"Открыть за 40 ★ · 0.5 $",payTitleOv:"Как открыть обзор?",paySubOv:"Стоимость: 40 ★ или 0.5 $",
   setGeneral:"Основное",setLang:"Язык",setTheme:"Тема",themeDark:"тёмная",themeLight:"светлая",themeBlack:"чёрная (OLED)",
   setNotif:"Уведомления",setPay:"Оплата",setPrice:"Цена за разбор",setHelp:"Справка",setFaq:"FAQ и о боте",pickTheme:"Выбери тему",
@@ -766,7 +766,7 @@ const I18N={
   histEmpty:"Nothing yet — run your first analysis.",ovUnlockFree:"Open for free",
   refJoinedL:"joined",refPaidL:"purchased",notAdvice:"Not financial advice.",
   chartFull:"⛶ Fullscreen chart",
-  aiWait:"Trader is analyzing…",showMore:"Show more",showLess:"Show less",aiWaitTitle:"Trader is analyzing the chart",aiWaitSub:"Please wait 15–20 seconds…",
+  aiWait:"Trader is analyzing…",histMore:"Show more",showMore:"Show more",showLess:"Show less",aiWaitTitle:"Trader is analyzing the chart",aiWaitSub:"Please wait 15–20 seconds…",
   ovLockTxt:"Unlock the full overview — key levels and summary",ovUnlock:"Unlock for 40 ★ · 0.5 $",payTitleOv:"How to unlock the overview?",paySubOv:"Cost: 40 ★ or 0.5 $",
   setGeneral:"General",setLang:"Language",setTheme:"Theme",themeDark:"dark",themeLight:"light",themeBlack:"black (OLED)",
   setNotif:"Notifications",setPay:"Payments",setPrice:"Price per review",setHelp:"Help",setFaq:"FAQ & about",pickTheme:"Choose theme",
@@ -941,7 +941,7 @@ function completePay(){
   if(p&&p.kind==="overview"){ revealOverview(); return; }
   show("loading"); if(p&&p.data) setTimeout(()=>renderVerdict(p.data),1200);
 }
-function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); loadAiOverview(); show("overview"); }
+function revealOverview(){ document.getElementById("ovLocked").classList.add("unlocked"); show("overview"); }
 // put text in a paragraph; if long, collapse it with a show more/less toggle
 function setExpandable(p, text){
   p.textContent = text;
@@ -965,29 +965,28 @@ function setExpandable(p, text){
 function showAiWait(){ document.getElementById("aiWaitOverlay").classList.add("on"); }
 function hideAiWait(){ document.getElementById("aiWaitOverlay").classList.remove("on"); }
 
-async function loadAiOverview(){
+function cleanAiText(t){ return (t||"").replace(/^#+\s*/gm,"").replace(/\*\*/g,"").replace(/^\s*[\*\-]\s+/gm,"• ").trim(); }
+async function loadAiOverview(coinArg, save){
   if(!HAS_SERVER) return;
-  const coin=(document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
-  const box=document.getElementById("ovLocked");
-  const secs=box.querySelectorAll(".verdict-box p");
+  const coin=(coinArg||document.getElementById("fCoin").value||"BTC").toUpperCase().replace(/[^A-Z0-9]/g,"")||"BTC";
+  const secs=document.querySelectorAll("#s-overview .verdict-box p");   // ALL 4 blocks, not just locked
   secs.forEach(p=>p.textContent="…");
   showAiWait();
   try{
     const r=await apiCall("/ai/overview",{coin,lang});
-    if(r.ok && r.text){ fillAiSections(r.text); }
+    if(r.ok && r.text){ fillAiSections(r.text); if(save) saveHistory("overview",coin,null,{coin,ai:r.text}); }
     else { secs.forEach(p=>p.textContent="—"); }
   }catch(e){ secs.forEach(p=>p.textContent="—"); }
   finally{ hideAiWait(); }
 }
 // robust splitter: handles [TREND] markers, ### Trend markdown, or keyword lines
 function fillAiSections(text){
-  const box=document.getElementById("ovLocked");
-  const ps=box.querySelectorAll(".verdict-box p");
+  const ps=document.querySelectorAll("#s-overview .verdict-box p");   // Trend, Volatility, Levels, Summary
   const keys=[
     {tag:"TREND", kw:"Trend|Тренд"},
     {tag:"VOLATILITY", kw:"Volatility|Волатильн\\w*"},
     {tag:"LEVELS", kw:"Levels|Key levels|Уровни|Ключевые\\w*"},
-    {tag:"RECOMMENDATION", kw:"Recommendation|Рекоменд\\w*"}
+    {tag:"RECOMMENDATION", kw:"Recommendation|Summary|Рекоменд\\w*|Резюме"}
   ];
   // normalize: turn "### Trend", "**Trend**", "Trend:" into "[TREND]" markers
   let t="\n"+text+"\n";
@@ -1000,11 +999,11 @@ function fillAiSections(text){
   const vol=grab("VOLATILITY","LEVELS|RECOMMENDATION");
   const lvl=grab("LEVELS","RECOMMENDATION");
   const rec=grab("RECOMMENDATION","$");
-  if(!trend && !vol && !lvl && !rec){ if(ps[0]) setExpandable(ps[0], text); [1,2,3].forEach(i=>{if(ps[i])ps[i].textContent="—";}); return; }
-  if(ps[0]) setExpandable(ps[0], trend||"—");
-  if(ps[1]) setExpandable(ps[1], vol||"—");
-  if(ps[2]) setExpandable(ps[2], lvl||"—");
-  if(ps[3]) setExpandable(ps[3], rec||"—");
+  if(!trend && !vol && !lvl && !rec){ if(ps[0]) setExpandable(ps[0], cleanAiText(text)); [1,2,3].forEach(i=>{if(ps[i])ps[i].textContent="—";}); return; }
+  if(ps[0]) setExpandable(ps[0], cleanAiText(trend)||"—");
+  if(ps[1]) setExpandable(ps[1], cleanAiText(vol)||"—");
+  if(ps[2]) setExpandable(ps[2], cleanAiText(lvl)||"—");
+  if(ps[3]) setExpandable(ps[3], cleanAiText(rec)||"—");
 }
 async function unlockOverview(){
   if(HAS_SERVER){
@@ -1089,9 +1088,9 @@ function renderVerdict(d){
   document.getElementById("verdictText").textContent=vt;
   const todos=level==="High"?t.tHigh:level==="Mid"?t.tMid:t.tLow;
   document.getElementById("todoList").innerHTML=todos.map(x=>"<li>"+x+"</li>").join("");
-  if(!d.__fromHistory) saveHistory("review", d.coin, level, d);
-  if(d.__live && HAS_SERVER) loadAiReview(d);
-  else if(d.ai){ document.getElementById("verdictText").textContent=d.ai; document.getElementById("todoList").innerHTML=""; }
+  if(!d.__fromHistory && d.__live && HAS_SERVER){ d.__level=level; loadAiReview(d); }
+  else if(d.ai){ setExpandable(document.getElementById("verdictText"), cleanAiText(d.ai)); document.getElementById("todoList").innerHTML=""; }
+  else if(!d.__fromHistory){ saveHistory("review", d.coin, level, d); }
 }
 async function loadAiReview(d){
   const vt=document.getElementById("verdictText"), td=document.getElementById("todoList");
@@ -1099,12 +1098,12 @@ async function loadAiReview(d){
   showAiWait();
   try{
     const r=await apiCall("/ai/review",{coin:d.coin,side:d.side,lev:d.lev,entry:d.entry,margin:d.margin,balance:d.balance,stopPct:d.stopPct,tpPct:d.tpPct,lang});
-    if(r.ok && r.text){ setExpandable(vt, r.text); d.ai=r.text; }
+    if(r.ok && r.text){ setExpandable(vt, cleanAiText(r.text)); d.ai=r.text; }
     else { vt.textContent=prevV; }
   }catch(e){ vt.textContent=prevV; }
-  finally{ hideAiWait(); }
+  finally{ hideAiWait(); saveHistory("review", d.coin, d.__level||null, d); }   // remembered with trader text
 }
-function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");const ub=document.getElementById("ovUnlockBtn");if(ub)ub.textContent=(freeOverviews>0)?t.ovUnlockFree:t.ovUnlock;show("overview");saveHistory("overview",coin,null,{coin});}
+function renderOverview(coin){const t=I18N[lang];document.getElementById("ovCoin").textContent=coin;document.getElementById("ovIntro").textContent=t.ovIntro.replace("{coin}",coin);document.getElementById("ovLocked").classList.remove("unlocked");const ub=document.getElementById("ovUnlockBtn");if(ub)ub.textContent=(freeOverviews>0)?t.ovUnlockFree:t.ovUnlock;show("overview");loadAiOverview(coin,true);}
 
 /* ---------- chart: TradingView advanced widget (pan/zoom, timeframes, all coins) ---------- */
 function loadTV(){
@@ -1236,13 +1235,29 @@ function renderAdminList(){
     else if(key==="created") val=new Date(u.created_at).toLocaleDateString();
     else val=u.purchases+" · $"+Number(u.usd||0).toFixed(2);
     const blk=u.blocked?'<span style="color:var(--red)">разбл.</span>':'блок';
+    const btnCss='margin-top:4px;border:none;background:var(--surface);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;';
     return '<div class="hist-item"><span class="coin" style="flex:1;font-family:var(--sans);font-size:13px">'+nm(u)+
-      '<br><span style="font-size:10px;color:var(--hint)">ID '+u.telegram_id+(u.blocked?' · 🚫':'')+'</span></span>'+
-      '<span class="meta" style="text-align:right">'+val+'<br><button onclick="toggleBlock('+u.telegram_id+','+(u.blocked?'false':'true')+')" style="margin-top:4px;border:none;background:var(--surface);color:var(--tg);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;">'+blk+'</button></span></div>';
+      '<br><span style="font-size:10px;color:var(--hint)">ID '+u.telegram_id+' · ov '+(u.free_overviews??0)+' / rv '+(u.free_reviews??0)+(u.blocked?' · 🚫':'')+'</span></span>'+
+      '<span class="meta" style="text-align:right">'+val+
+      '<br><button onclick="adminGrant('+u.telegram_id+')" style="'+btnCss+'color:var(--green);">выдать</button>'+
+      ' <button onclick="toggleBlock('+u.telegram_id+','+(u.blocked?'false':'true')+')" style="'+btnCss+'color:var(--tg);">'+blk+'</button></span></div>';
   }).join("");
 }
-async function toggleBlock(id, blocked){
+async function adminGrant(id){
+  const ov=parseInt(prompt("Сколько обзоров монет выдать? (можно с минусом, чтобы отнять)","1"));
+  if(isNaN(ov)) return;
+  const rv=parseInt(prompt("Сколько разборов позиций выдать?","1"));
+  if(isNaN(rv)) return;
+  if(!ov && !rv) return;
   try{
+    const r=await apiCall("/admin/grant",{password:adminPassword,target:id,overviews:ov,reviews:rv});
+    const u=adminAllUsers.find(x=>Number(x.telegram_id)===Number(id));
+    if(u){ u.free_overviews=r.free_overviews; u.free_reviews=r.free_reviews; }
+    renderAdminList();
+    alert("Выдано. Теперь у юзера: обзоров "+r.free_overviews+", разборов "+r.free_reviews);
+  }catch(e){ alert("Ошибка выдачи"); }
+}
+async function toggleBlock(id, blocked){  try{
     await apiCall("/admin/block",{password:adminPassword,target:id,blocked:blocked});
     const u=adminAllUsers.find(x=>Number(x.telegram_id)===Number(id)); if(u) u.blocked=blocked;
     renderAdminList();
@@ -1288,13 +1303,24 @@ async function loadHistory(){
       const col = it.level==="High"?"var(--red)":it.level==="Mid"?"var(--amber)":"var(--green)";
       const label = (it.coin||"?") + (isRev? (p.lev?(" "+p.lev+"x"):"") : "");
       const meta = isRev ? (it.level==="High"?I18N[lang].riskHigh:it.level==="Mid"?I18N[lang].riskMid:I18N[lang].riskLow) : I18N[lang].modeView;
-      return '<div class="hist-item" onclick="openHistory('+it.id+')"><span class="dot" style="background:'+(isRev?col:"var(--tg)")+'"></span><span class="coin">'+label+'</span><span class="meta">'+meta+'</span></div>';
+      return '<div class="hist-item'+(i>=5?' hist-hidden':'')+'" onclick="openHistory('+it.id+')"><span class="dot" style="background:'+(isRev?col:"var(--tg)")+'"></span><span class="coin">'+label+'</span><span class="meta">'+meta+'</span></div>';
     }).join("");
+    if(items.length>5){
+      box.innerHTML += '<button class="btn-ghost" id="histMoreBtn" style="height:38px;font-size:13px;margin-top:8px;" onclick="histShowMore()">'+I18N[lang].histMore+'</button>';
+    }
   }catch(e){ box.innerHTML='<div class="cs-msg">'+I18N[lang].histEmpty+'</div>'; }
 }
+function histShowMore(){ document.querySelectorAll("#histList .hist-hidden").forEach(e=>e.classList.remove("hist-hidden")); const b=document.getElementById("histMoreBtn"); if(b)b.remove(); }
 function openHistory(id){
   const it = window.__hist && window.__hist[id]; if(!it) return;
-  if(it.kind==="overview"){ document.getElementById("ovLocked").classList.add("unlocked"); document.getElementById("ovCoin").textContent=it.coin||""; document.getElementById("ovIntro").textContent=I18N[lang].ovIntro.replace("{coin}",it.coin||""); show("overview"); }
+  if(it.kind==="overview"){
+    document.getElementById("ovLocked").classList.add("unlocked");
+    document.getElementById("ovCoin").textContent=it.coin||"";
+    document.getElementById("ovIntro").textContent=I18N[lang].ovIntro.replace("{coin}",it.coin||"");
+    show("overview");
+    if(it.ai) fillAiSections(it.ai);            // remembered trader text — no new request
+    else loadAiOverview(it.coin,false);          // old entry without saved text
+  }
   else { it.__fromHistory=true; renderVerdict(it); }
 }
 
@@ -1304,7 +1330,6 @@ setSide("long");setMode("view");setTheme("dark");renderBalance();loadMe();checkA
 const ADDR_EVM="0xd6207b9eeaa559699dcf62272ed416881bba8a27";
 const ADDR_TRON="TZELSNUrT1vkQJcWYW8vKj8r53HrQ4cFaZ";
 const PAY_COINS={
-  BTC:{decimals:8,nets:[["Bitcoin",null,null]]},
   USDT:{decimals:6,nets:[["TRC20",ADDR_TRON,"tron"],["BSC (BEP20)",ADDR_EVM,"bsc"],["Arbitrum",ADDR_EVM,"arbitrum"]]},
   USDC:{decimals:6,nets:[["BSC (BEP20)",ADDR_EVM,"bsc"],["Arbitrum",ADDR_EVM,"arbitrum"]]},
   ETH:{decimals:6,nets:[["Arbitrum",ADDR_EVM,"arbitrum"],["BSC (BEP20)",ADDR_EVM,"bsc"]]}
